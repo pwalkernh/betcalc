@@ -1,0 +1,2 @@
+# betcalc
+Simple betting calculator
