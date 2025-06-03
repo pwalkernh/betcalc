@@ -199,3 +199,39 @@ def calculate_odds(stake, desired_payout):
 # TODO: Implement this.  Function stub added to allow writing unit tests.
 def calculate_effective_odds(odds_string, fee=0.03):
     pass
+
+def calculate_effective_odds(odds_string, fee=0.03):
+    """
+    Calculate the effective odds after accounting for a fee on profits.
+    
+    Args:
+        odds_string (str): American odds string (e.g., "+150", "-200")
+        fee (float): Fee percentage as a decimal (default: 0.03 for 3%)
+        
+    Returns:
+        str: Effective American odds string after fee adjustment
+        
+    Raises:
+        ValueError: If inputs are invalid
+    """
+    if not isinstance(fee, (int, float)):
+        raise ValueError("Fee must be a number")
+    
+    if fee < 0 or fee >= 1:
+        raise ValueError("Fee must be between 0 and 1")
+    
+    # Parse the original odds to decimal
+    decimal_odds = parse_american_odds(odds_string)
+    
+    # Calculate the profit factor (1 - fee)
+    profit_factor = 1 - fee
+    
+    # In decimal odds, the profit component is (decimal_odds - 1)
+    # We adjust this profit component by the profit factor
+    adjusted_profit = (decimal_odds - 1) * profit_factor
+    
+    # The new effective decimal odds
+    effective_decimal_odds = 1 + adjusted_profit
+    
+    # Convert back to American odds
+    return decimal_to_american_odds(effective_decimal_odds)
