@@ -202,17 +202,21 @@ def calculate_effective_odds(odds_string, fee=0.03):
 
 def calculate_effective_odds(odds_string, fee=0.03):
     """
-    Calculate the effective odds after accounting for a fee on profits.
+    Calculate the effective American odds after adjusting for a percentage fee on the profit.
+    
+    The fee is applied only to the profit portion of a winning bet, reducing the effective payout.
+    This function computes the adjusted odds based on the original odds and fee.
     
     Args:
         odds_string (str): American odds string (e.g., "+150", "-200")
-        fee (float): Fee percentage as a decimal (default: 0.03 for 3%)
+        fee (float, optional): Percentage fee on profit as a decimal (e.g., 0.03 for 3%). Defaults to 0.03.
+                               Must be between 0 and 1.
         
     Returns:
-        str: Effective American odds string after fee adjustment
+        str: Effective American odds string after fee adjustment (e.g., "-108")
         
     Raises:
-        ValueError: If inputs are invalid
+        ValueError: If inputs are invalid, fee is out of range, or effective odds are invalid.
     """
     if not isinstance(fee, (int, float)):
         raise ValueError("Fee must be a number")
