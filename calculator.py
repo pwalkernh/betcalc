@@ -196,10 +196,6 @@ def calculate_odds(stake, desired_payout):
         "profit": round(profit, 2)
     }
 
-# TODO: Implement this.  Function stub added to allow writing unit tests.
-def calculate_effective_odds(odds_string, fee=0.03):
-    pass
-
 def calculate_effective_odds(odds_string, fee=0.03):
     """
     Calculate the effective American odds after adjusting for a percentage fee on the profit.
