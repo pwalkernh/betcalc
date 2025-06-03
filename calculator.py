@@ -196,6 +196,43 @@ def calculate_odds(stake, desired_payout):
         "profit": round(profit, 2)
     }
 
-# TODO: Implement this.  Function stub added to allow writing unit tests.
+# DA Implementation.  Function stub added to allow writing unit tests.
 def calculate_effective_odds(odds_string, fee=0.03):
-    pass
+    """
+    Calculate the effective American odds after adjusting for a percentage fee on the profit.
+    
+    The fee is applied only to the profit portion of a winning bet, reducing the effective payout.
+    This function computes the adjusted odds based on the original odds and fee.
+    
+    Args:
+        odds_string (str): American odds string (e.g., "+150", "-200")
+        fee (float, optional): Percentage fee on profit as a decimal (e.g., 0.03 for 3%). Defaults to 0.03.
+                               Must be between 0 and 1.
+        
+    Returns:
+        str: Effective American odds string after fee adjustment (e.g., "-108")
+        
+    Raises:
+        ValueError: If inputs are invalid, fee is out of range, or effective odds are invalid.
+    """
+    if not isinstance(fee, (int, float)) or not (0 <= fee < 1):
+        raise ValueError("Fee must be a number between 0 and 1 (exclusive of 1)")
+    
+    # Parse original odds to decimal
+    original_decimal = parse_american_odds(odds_string)
+    
+    # Calculate effective decimal odds: adjust profit portion for fee
+    profit_multiplier = original_decimal - 1
+    if profit_multiplier <= 0:
+        raise ValueError("Original odds must allow for positive profit (decimal odds > 1)")
+    
+    effective_profit_multiplier = profit_multiplier * (1 - fee)
+    effective_decimal = 1 + effective_profit_multiplier
+    
+    # Ensure effective decimal is valid
+    if effective_decimal < 1:
+        raise ValueError("Effective decimal odds must be at least 1 after fee adjustment")
+    
+    # Convert back to American odds
+    effective_american = decimal_to_american_odds(effective_decimal)
+    return effective_american
