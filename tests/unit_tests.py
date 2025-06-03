@@ -188,7 +188,7 @@ class TestBettingCalculator(unittest.TestCase):
         # Should round to nearest whole number for American odds
         self.assertIn(result["odds"], ["+133", "+134"])
 
-    def calculate_effective_odds_for_comparison(odds_string, fee=0.03):
+    def calculate_effective_odds_for_comparison(self,odds_string, fee=0.03):
         """Calculate the effective odds for comparison purposes."""
         stake = 100 # Arbitrary stake, doesn't matter to the result
         decimal_odds = parse_american_odds(odds_string)
@@ -203,7 +203,8 @@ class TestBettingCalculator(unittest.TestCase):
         """Test adjusted odds calculation."""
         # Compute the result in an inefficient way to ensure the function is correct.
         self.assertEqual(calculate_effective_odds("-105"), self.calculate_effective_odds_for_comparison("-105"))
-
+        self.assertEqual(calculate_effective_odds("+125"), self.calculate_effective_odds_for_comparison("+125"))
+        
 if __name__ == "__main__":
     # Run the tests
     unittest.main(verbosity=2) 
