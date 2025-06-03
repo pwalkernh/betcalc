@@ -5,7 +5,7 @@ import os
 # Add the parent directory to the path so we can import from app
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from calculator import calculate_payout, calculate_stake, calculate_odds, parse_american_odds, decimal_to_american_odds
+from calculator import calculate_payout, calculate_stake, calculate_odds, parse_american_odds, decimal_to_american_odds, calculate_effective_odds
 
 
 class TestBettingCalculator(unittest.TestCase):
@@ -188,6 +188,21 @@ class TestBettingCalculator(unittest.TestCase):
         # Should round to nearest whole number for American odds
         self.assertIn(result["odds"], ["+133", "+134"])
 
+    def calculate_effective_odds_for_comparison(odds_string, fee=0.03):
+        """Calculate the effective odds for comparison purposes."""
+        stake = 100 # Arbitrary stake, doesn't matter to the result
+        decimal_odds = parse_american_odds(odds_string)
+        total_payout = stake * decimal_odds
+        profit = total_payout - stake
+        adjusted_profit = profit * (1 - fee)
+        adjusted_payout = stake + adjusted_profit
+        result = calculate_odds(stake, adjusted_payout)
+        return result['odds']
+
+    def test_calculate_adjusted_odds(self):
+        """Test adjusted odds calculation."""
+        # Compute the result in an inefficient way to ensure the function is correct.
+        self.assertEqual(calculate_effective_odds("-105"), self.calculate_effective_odds_for_comparison("-105"))
 
 if __name__ == "__main__":
     # Run the tests
