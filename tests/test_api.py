@@ -261,7 +261,6 @@ class TestBettingCalculatorAPI(unittest.TestCase):
         """Test effective odds calculation with invalid inputs."""
         for payload in [
             {"odds": "invalid"},
-            {"odds": "+150", "fee": -0.1},
             {"odds": "+150", "fee": 1.1},
             {"odds": "+150", "fee": "invalid"}
         ]:
@@ -286,6 +285,23 @@ class TestBettingCalculatorAPI(unittest.TestCase):
         
         self.assertEqual(response.status_code, 400)
         self.assertIn("error", data)
+    
+    def test_calculate_effective_odds_negative_fee(self):
+        """Test effective odds calculation with negative fee."""
+        payload = {
+            "odds": "+100",
+            "fee": -0.10
+        }
+        
+        response = self.app.post('/calculate/effective_odds', 
+                                json=payload,
+                                content_type='application/json')
+        data = json.loads(response.data)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("effective_odds", data)
+        # The effective odds should be greater than the original odds due to the negative fee
+        self.assertEqual(float(data["effective_odds"].replace("+", "")), 110)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -166,7 +166,9 @@ def get_effective_odds():
     
     POST JSON Parameters:
         odds (str): American odds string (e.g., "+150", "-200")
-        fee (float, optional): Percentage fee on profit as a decimal (e.g., 0.03 for 3%). Defaults to 0.03.
+        fee (float, optional): Percentage fee on profit as a decimal (e.g., 0.03 for 3%, -0.03 for -3%). 
+                              Defaults to 0.03. Must be less than 1.
+                              Negative fees increase the effective odds, positive fees decrease them.
         
     Returns:
         JSON: {"effective_odds": str} on success
