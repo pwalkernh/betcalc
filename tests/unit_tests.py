@@ -204,7 +204,8 @@ class TestBettingCalculator(unittest.TestCase):
         # Compute the result in an inefficient way to ensure the function is correct.
         self.assertEqual(calculate_effective_odds("-105"), self.calculate_effective_odds_for_comparison("-105"))
         self.assertEqual(calculate_effective_odds("+125"), self.calculate_effective_odds_for_comparison("+125"))
-        
+        self.assertEqual(calculate_effective_odds("-515"), self.calculate_effective_odds_for_comparison("-515"))
+
 if __name__ == "__main__":
     # Run the tests
     unittest.main(verbosity=2) 

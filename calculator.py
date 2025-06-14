@@ -217,8 +217,8 @@ def calculate_effective_odds(odds_string, fee=0.03):
     if not isinstance(fee, (int, float)):
         raise ValueError("Fee must be a number")
     
-    if fee < 0 or fee >= 1:
-        raise ValueError("Fee must be between 0 and 1")
+    if fee >= 1:
+        raise ValueError("Fee must be <1")
     
     # Parse the original odds to decimal
     decimal_odds = parse_american_odds(odds_string)

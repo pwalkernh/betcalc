@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from calculator import calculate_payout, calculate_stake, calculate_odds
+from calculator import calculate_payout, calculate_stake, calculate_odds, calculate_effective_odds
 
 app = Flask(__name__)
 
@@ -159,6 +159,55 @@ def get_odds():
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
+@app.route('/calculate/effective_odds', methods=['POST'])
+def get_effective_odds():
+    """
+    Calculate the effective odds after adjusting for a percentage fee on the profit.
+    
+    POST JSON Parameters:
+        odds (str): American odds string (e.g., "+150", "-200")
+        fee (float, optional): Percentage fee on profit as a decimal (e.g., 0.03 for 3%). Defaults to 0.03.
+        
+    Returns:
+        JSON: {"effective_odds": str} on success
+        JSON: {"error": str} with appropriate status code on error
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Validate odds
+        if 'odds' not in data:
+            return jsonify({"error": "Missing 'odds' parameter"}), 400
+        
+        odds_string = data.get('odds')
+        
+        # Get fee if provided, otherwise use default
+        fee = data.get('fee', 0.03)
+        
+        try:
+            fee = float(fee)
+        except ValueError:
+            return jsonify({"error": "Fee must be a valid number"}), 400
+        
+        if fee >= 1:
+            return jsonify({"error": "Fee must be < 1"}), 400
+        
+        # Calculate effective odds using calculator function
+        try:
+            effective_odds = calculate_effective_odds(odds_string, fee)
+            return jsonify({
+                "effective_odds": effective_odds
+            })
+            
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+            
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
 @app.route('/')
 def home():
     """Return API information and documentation."""
@@ -168,7 +217,8 @@ def home():
         "endpoints": {
             "/calculate/payout": "Calculate payout from odds and stake",
             "/calculate/stake": "Calculate stake from odds and payout",
-            "/calculate/odds": "Calculate odds from stake and payout"
+            "/calculate/odds": "Calculate odds from stake and payout",
+            "/calculate/effective_odds": "Calculate effective odds after fee adjustment"
         },
         "usage": "Send POST requests with JSON data to the endpoints"
     })
@@ -176,4 +226,4 @@ def home():
 print("Starting the API...")
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(host='0.0.0.0', port=5000, debug=True) 
