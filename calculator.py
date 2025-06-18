@@ -124,6 +124,7 @@ def calculate_stake(odds_string, desired_payout):
         dict: Dictionary containing stake calculation details
             - stake (float): Required stake amount
             - profit (float): Expected profit
+            - payout (float): Total payout (same as desired_payout)
             - total_payout (float): Total payout (same as desired_payout)
             - odds (str): Original odds string
         
@@ -144,6 +145,7 @@ def calculate_stake(odds_string, desired_payout):
     return {
         "stake": round(required_stake, 2),
         "profit": round(profit, 2),
+        "payout": desired_payout,
         "total_payout": desired_payout,
         "odds": odds_string
     }

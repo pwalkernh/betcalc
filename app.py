@@ -61,7 +61,7 @@ def get_stake():
         payout (float): Desired total payout in dollars
         
     Returns:
-        JSON: {"stake": float, "profit": float} on success
+        JSON: {"stake": float, "profit": float, "payout": float} on success
         JSON: {"error": str} with appropriate status code on error
     """
     try:
@@ -93,7 +93,8 @@ def get_stake():
             result = calculate_stake(odds_string, payout)
             return jsonify({
                 "stake": result["stake"],
-                "profit": result["profit"]
+                "profit": result["profit"],
+                "payout": result["payout"]
             })
             
         except ValueError as e:
