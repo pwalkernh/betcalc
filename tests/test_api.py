@@ -90,6 +90,7 @@ class TestBettingCalculatorAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertAlmostEqual(data["stake"], 100.0, places=2)
         self.assertAlmostEqual(data["profit"], 150.0, places=2)
+        self.assertAlmostEqual(data["payout"], 250.0, places=2)
     
     def test_calculate_stake_negative_odds(self):
         """Test stake calculation with negative odds."""
@@ -106,6 +107,7 @@ class TestBettingCalculatorAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertAlmostEqual(data["stake"], 100.0, places=2)
         self.assertAlmostEqual(data["profit"], 50.0, places=2)
+        self.assertAlmostEqual(data["payout"], 150.0, places=2)
     
     def test_calculate_stake_invalid_payout(self):
         """Test stake calculation with invalid payout."""

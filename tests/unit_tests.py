@@ -100,7 +100,7 @@ class TestBettingCalculator(unittest.TestCase):
         result = calculate_stake("+150", 250)
         self.assertAlmostEqual(result["stake"], 100.0, places=2)
         self.assertEqual(result["profit"], 150.0)
-        self.assertEqual(result["total_payout"], 250)
+        self.assertEqual(result["payout"], 250)
         self.assertEqual(result["odds"], "+150")
 
         # +200 odds, want $150 total payout, should need $50 stake
@@ -114,7 +114,7 @@ class TestBettingCalculator(unittest.TestCase):
         result = calculate_stake("-200", 300)
         self.assertAlmostEqual(result["stake"], 200.0, places=2)
         self.assertEqual(result["profit"], 100.0)
-        self.assertEqual(result["total_payout"], 300)
+        self.assertEqual(result["payout"], 300)
 
         # -150 odds, want $250 total payout, should need $150 stake
         result = calculate_stake("-150", 250)
