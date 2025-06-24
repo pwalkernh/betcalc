@@ -1,10 +1,16 @@
 # betcalc
 Simple betting calculator
 
+# Running the Flask service
+
+```sh
+docker run --rm -it --name betcalc-app -p 5000:5000 betcalc:latest
+```
+
 # Running all tests
 
 ```sh
-./run_tests.sh
+docker run --rm -it --name betcalc-app -p 5000:5000 ./run_tests.sh
 ```
 
 # Running a specific unit test
