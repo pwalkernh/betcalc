@@ -53,7 +53,8 @@ def extract_sportsline_json_data(html_content: str) -> Dict[str, Any]:
     return {}
 
 
-# Data fields to extract from the "edges" array in SportsLine JSON
+# Data fields to extract from the "edges" array in SportsLine JSON.
+# The dictionary keys are the JSON keys to extract, and the values are the keys to use in the output.
 fields_to_extract = {
     "node.resultStatus": "resultStatus",
     "node.unit": "unit",
