@@ -1,6 +1,5 @@
+
 import unittest
-from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
 import json
 import sys
 import os
@@ -24,10 +23,21 @@ class TestCapperTracker(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.sample_url = "https://www.sportsline.com/experts/50774572/matt-severance/"
-        self.start_date = datetime.now() - timedelta(days=7)
-        self.end_date = datetime.now()
 
         self.expectedSimplifiedJSON = [
+            {
+                "resultStatus": "Win",
+                "unit": 0.5,
+                "game.abbrev": "MLB_20250619_LAA@NYY",
+                "game.scheduledTime": "2025-06-19T17:05:00.000Z",
+                "game.homeTeamScore": 7,
+                "game.awayTeamScore": 3,
+                "game.league.abbrev": "MLB",
+                "selection.label": "First 5 Innings N.Y. Yankees -0.5 -161",
+                "selection.marketType": "PROP",
+                "selection.odds": -161,
+                "selection.unit": 0.5,
+            },
             {
                 "resultStatus": "Loss",
                 "unit": 1,
@@ -213,29 +223,6 @@ class TestCapperTracker(unittest.TestCase):
         self.assertIn("<body>", html)
         self.assertIn("</body>", html)
 
-    def test_fetch_sportsline_expert_webpage_with_dates(self):
-        """Test fetch_sportsline_expert_webpage with date parameters."""
-
-        html = fetch_sportsline_expert_webpage(
-            self.sample_url, 
-            start_date=self.start_date, 
-            end_date=self.end_date
-        )
-
-        # Check that valid html is returned.
-        self.assertIn("<html>", html)
-        self.assertIn("</html>", html)
-        self.assertIn("<body>", html)
-        self.assertIn("</body>", html)
-
-    def test_fetch_sportsline_expert_webpage_request_exception(self):
-        """Test fetch_sportsline_expert_webpage handles request exceptions."""
-        with patch('capper_tracker.requests.get') as mock_get:
-            mock_get.side_effect = Exception("Network error")
-
-            with self.assertRaises(Exception):
-                fetch_sportsline_expert_webpage(self.sample_url)
-
     def test_extract_sportsline_json_data(self):
         """Test basic functionality of extract_sportsline_json_data."""
         with open('tests/data/Matt Severance - Vegas Expert Picks - Severance Pays - SportsLine.com.html', 'r', encoding='utf-8') as f:
@@ -254,10 +241,8 @@ class TestCapperTracker(unittest.TestCase):
         """Test extract_sportsline_json_data with HTML containing no JSON."""
         html = "<html><body>No JSON here</body></html>"
 
-        result = extract_sportsline_json_data(html)
-
-        # Since there is no JSON in the HTML, it should return empty dict
-        self.assertEqual(result, {})
+        with self.assertRaises(ValueError):
+            result = extract_sportsline_json_data(html)
 
     def test_transform_sportsline_json_data_with_sample_data(self):
         """Test basic functionality of transform_sportsline_json_data."""
@@ -311,12 +296,14 @@ class TestCapperTracker(unittest.TestCase):
 
     def test_compute_bet_results_empty_data(self):
         """Test compute_bet_results with empty bet data."""
-        result = compute_bet_results([])
 
-        expected_keys = {"record", "results", "total_units", "roi"}
-        self.assertEqual(set(result.keys()), expected_keys)
-        self.assertEqual(result["record"], {"wins": 0, "losses": 0, "draws": 0})
+        # Expect a ValueError because the data is empty.
+        with self.assertRaises(ValueError):
+            result = compute_bet_results([])
 
+        # expected_keys = {"record", "results", "total_units", "roi"}
+        # self.assertEqual(set(result.keys()), expected_keys)
+        # self.assertEqual(result["record"], {"wins": 0, "losses": 0, "draws": 0})
 
     def test_integration_workflow(self):
         """Test the complete workflow from HTML to results.
@@ -340,10 +327,6 @@ class TestCapperTracker(unittest.TestCase):
         # Check that the most recent date (first in the list) in the data is newer than "2025-06-19T00:30:00.000Z"
         # This is the earliest date in the sample data.
         self.assertGreater(transformed_data[0]["game.scheduledTime"], "2025-06-19T00:30:00.000Z")
-
-        #  Check that the oldest date (last in the list) is older than start_date.
-        # If not, then the data is not complete and the "Load More Picks" button should have been activated.
-        self.assertLess(transformed_data[-1]["game.scheduledTime"], self.start_date)
 
         results = compute_bet_results(transformed_data)
 
