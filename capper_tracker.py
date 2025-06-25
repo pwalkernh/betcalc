@@ -1,15 +1,18 @@
 import requests
 import json
 import re
-from datetime import datetime, timedelta
+import os
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
+from webdriver_manager.firefox import GeckoDriverManager
 
 
 def fetch_sportsline_expert_webpage(url: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> str:
@@ -34,47 +37,141 @@ def fetch_sportsline_expert_webpage(url: str, start_date: Optional[datetime] = N
     if end_date is None:
         end_date = datetime.now()
     
-    # Set up Chrome options for headless browsing
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+    # Make dates timezone-aware if they aren't already
+    if start_date.tzinfo is None:
+        start_date = start_date.replace(tzinfo=timezone.utc)
+    if end_date.tzinfo is None:
+        end_date = end_date.replace(tzinfo=timezone.utc)
     
-    driver = webdriver.Chrome(options=chrome_options)
+    # Set up Firefox options for headless browsing
+    firefox_options = Options()
+    firefox_options.add_argument("--headless")
+    firefox_options.add_argument("--width=1920")
+    firefox_options.add_argument("--height=1080")
+    firefox_options.set_preference("dom.webdriver.enabled", False)
+    firefox_options.set_preference("useAutomationExtension", False)
+    firefox_options.set_preference("general.useragent.override", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0")
+    
+    # Use manually installed geckodriver in Docker, fallback to webdriver-manager
+    if os.path.exists('/usr/local/bin/geckodriver'):
+        service = Service('/usr/local/bin/geckodriver')
+        print(f"Using manual geckodriver: /usr/local/bin/geckodriver")
+    else:
+        service = Service(GeckoDriverManager().install())
+        print(f"Using webdriver-manager geckodriver")
+    
+    # Set up virtual display for headless Firefox in Docker
+    if os.environ.get('DISPLAY') == ':99':
+        try:
+            import subprocess
+            subprocess.Popen(['Xvfb', ':99', '-screen', '0', '1024x768x24'])
+            time.sleep(1)
+        except:
+            pass
+    
+    try:
+        driver = webdriver.Firefox(service=service, options=firefox_options)
+        print("✓ Firefox WebDriver initialized successfully")
+    except Exception as e:
+        print(f"Error initializing Firefox WebDriver: {e}")
+        print(f"geckodriver path: {service.path}")
+        print(f"Firefox options: {firefox_options.arguments}")
+        raise
     
     try:
         driver.get(url)
         
         # Wait for the page to load
-        WebDriverWait(driver, 10).wait(
+        WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
         
         # Keep clicking "Load More Picks" until we have enough data or no more button
-        while True:
+        max_clicks = 5  # Prevent infinite loops
+        click_count = 0
+        
+        while click_count < max_clicks:
             try:
                 # Check if we have enough date coverage by looking at the earliest pick date
                 html_content = driver.page_source
                 earliest_date = _get_earliest_pick_date(html_content)
                 
                 if earliest_date and earliest_date <= start_date:
+                    print(f"✓ Date range covered. Earliest pick: {earliest_date}")
                     break
                 
-                # Look for "Load More Picks" button
-                load_more_button = WebDriverWait(driver, 5).until(
-                    EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Load More') or contains(text(), 'Show More') or contains(@class, 'load-more')]"))
-                )
+                button_xpath = "//button[.//span/span[text()='Load More Picks']]"
                 
-                driver.execute_script("arguments[0].click();", load_more_button)
-                time.sleep(2)  # Wait for content to load
+                button_found = False
+                try:
+                    load_more_button = WebDriverWait(driver, 3).until(
+                        EC.element_to_be_clickable((By.XPATH, button_xpath))
+                    )
+                    print(f"Found button with xpath: {button_xpath}")
+                    
+                    # Scroll to the button to make sure it's visible
+                    driver.execute_script("arguments[0].scrollIntoView(true);", load_more_button)
+                    time.sleep(1)
+                    
+                    # Try clicking with JavaScript first, then regular click
+                    try:
+                        driver.execute_script("arguments[0].click();", load_more_button)
+                    except:
+                        load_more_button.click()
+
+                    WebDriverWait(driver, 10).until_not(
+                        EC.text_to_be_present_in_element((By.XPATH, button_xpath), "Load More Picks")
+                    )
+
+                    # Now Wait for it to change back to "Load More Picks" (content loaded)
+                    WebDriverWait(driver, 10).until(
+                        EC.text_to_be_present_in_element((By.XPATH, button_xpath), "Load More Picks")
+                    )
+                    
+                    click_count += 1
+                    print(f"Clicked 'Load More' button (attempt {click_count})")
+                    time.sleep(3)  # Wait longer for content to load
+                    button_found = True
+                    
+                except (TimeoutException, NoSuchElementException):
+                    print("No 'Load More' button found - all data may be loaded")
+                    break
+                    try:
+                        load_more_button = WebDriverWait(driver, 3).until(
+                            EC.element_to_be_clickable((By.XPATH, "//button[.//span/span[text()='Load More Picks']]"))
+                            #EC.element_to_be_clickable((By.XPATH, selector))
+                        )
+                        print(f"Found button with selector: {selector}")
+                        
+                        # Scroll to the button to make sure it's visible
+                        driver.execute_script("arguments[0].scrollIntoView(true);", load_more_button)
+                        time.sleep(1)
+                        
+                        # Try clicking with JavaScript first, then regular click
+                        try:
+                            driver.execute_script("arguments[0].click();", load_more_button)
+                        except:
+                            load_more_button.click()
+                        
+                        click_count += 1
+                        print(f"Clicked 'Load More' button (attempt {click_count})")
+                        time.sleep(3)  # Wait longer for content to load
+                        button_found = True
+                        break
+                        
+                    except (TimeoutException, NoSuchElementException):
+                        continue
                 
-            except TimeoutException:
-                # No more "Load More" button found
+                if not button_found:
+                    print("No 'Load More' button found - all data may be loaded")
+                    break
+                
+            except Exception as e:
+                print(f"Error during load more process: {e}")
                 break
-            except NoSuchElementException:
-                # No more "Load More" button found
-                break
+        
+        if click_count >= max_clicks:
+            print(f"Reached maximum clicks ({max_clicks}) - stopping")
         
         return driver.page_source
         
@@ -88,10 +185,13 @@ def _get_earliest_pick_date(html_content: str) -> Optional[datetime]:
         # Try to extract JSON data first
         json_data = extract_sportsline_json_data(html_content)
         if json_data:
-            picks_data = json_data.get('props', {}).get('pageProps', {}).get('expertPicksContainerProps', {})
+            picks_data = json_data.get('props', {}).get('pageProps', {}).get('expertPicksContainerProps', {}).get('pastData', {})
             edges = picks_data.get('expertPicks', {}).get('edges', [])
             
             if edges:
+                # Print number of picks
+                print(f"Number of picks: {len(edges)}")
+
                 dates = []
                 for edge in edges:
                     scheduled_time = edge.get('node', {}).get('game', {}).get('scheduledTime')
@@ -103,9 +203,17 @@ def _get_earliest_pick_date(html_content: str) -> Optional[datetime]:
                             continue
                 
                 if dates:
-                    return min(dates)
-    except:
-        pass
+                    earliest = min(dates)
+                    print(f"Earliest pick date: {earliest}")
+                    return earliest
+                else:
+                    print("No valid dates found in picks")
+            else:
+                print("No edges found in picks data")
+        else:
+            print("No JSON data extracted")
+    except Exception as e:
+        print(f"Error extracting earliest date: {e}")
     
     # Fallback: look for date patterns in HTML
     date_patterns = [
@@ -127,6 +235,7 @@ def _get_earliest_pick_date(html_content: str) -> Optional[datetime]:
             except:
                 continue
     
+    print("No dates found in HTML content")
     return None
 
 
@@ -266,7 +375,7 @@ def transform_sportsline_json_data(json_data: Dict[str, Any]) -> List[Dict[str, 
     try:
         # Navigate to the picks data
         page_props = json_data.get('props', {}).get('pageProps', {})
-        picks_container = page_props.get('expertPicksContainerProps', {})
+        picks_container = page_props.get('expertPicksContainerProps', {}).get('pastData', {})
         expert_picks = picks_container.get('expertPicks', {})
         edges = expert_picks.get('edges', [])
         
