@@ -5,16 +5,13 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 
-def fetch_sportsline_expert_webpage(url: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> str:
+def fetch_sportsline_expert_webpage(url: str) -> str:
     """
     Fetch HTML data for the given sportsline expert web page.
     See sample data in "tests/data/Matt Severance - Vegas Expert Picks - Severance Pays - SportsLine.com.html".
-    Checks the date range of the betting data to be sure it covers the timeframe requested, and activates the "Load More Picks" button as needed.
     
     Args:
         url (str): The URL to fetch data from
-        start_date (datetime, optional): Start date for filtering data. Defaults to 7 days ago.
-        end_date (datetime, optional): End date for filtering data. Defaults to current date/time.
     
     Returns:
         str: HTML content of the web page
@@ -22,9 +19,16 @@ def fetch_sportsline_expert_webpage(url: str, start_date: Optional[datetime] = N
     Raises:
         requests.RequestException: If the HTTP request fails
     """
-    # TODO: Implement web scraping logic to fetch HTML content
-    return ""
-
+    # Implement web scraping logic to fetch HTML content
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }  # Mimic a browser to avoid potential blocking
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()  # Raise exception for 4xx/5xx errors
+        return response.text
+    except requests.RequestException as e:
+        raise requests.RequestException(f"Failed to fetch URL {url}: {e}")
 
 def extract_sportsline_json_data(html_content: str) -> Dict[str, Any]:
     """
@@ -45,12 +49,21 @@ def extract_sportsline_json_data(html_content: str) -> Dict[str, Any]:
         ValueError: If no JSON data can be found in the HTML content
         json.JSONDecodeError: If the extracted JSON cannot be parsed
     """
-    # TODO: Implement JSON extraction logic from HTML content
+    # Implement JSON extraction logic from HTML content
     # Look for patterns like:
     # - window.__APOLLO_STATE__ = {...}
     # - window.__NEXT_DATA__ = {...}
     # - <script id="__NEXT_DATA__" type="application/json">...</script>
-    return {}
+    pattern = r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>'
+    match = re.search(pattern, html_content, re.DOTALL)
+    if not match:
+        raise ValueError("No JSON data found in the HTML content")
+    
+    try:
+        json_str = match.group(1).strip()
+        return json.loads(json_str)
+    except json.JSONDecodeError as e:
+        raise json.JSONDecodeError(f"Failed to parse extracted JSON: {e}", json_str, 0)
 
 
 # Data fields to extract from the "edges" array in SportsLine JSON.
@@ -91,19 +104,7 @@ def transform_sportsline_json_data(json_data: Dict[str, Any]) -> List[Dict[str, 
             "selection.odds": -152,
             "selection.unit": 0.5
         },
-        {
-            "resultStatus": "Win",
-            "unit": 1,
-            "game.abbrev": "NHL_20250617_EDM@FLA",
-            "game.scheduledTime": "2025-06-18T00:00:00.000Z",
-            "game.homeTeamScore": 5,
-            "game.awayTeamScore": 1,
-            "game.league.abbrev": "NHL",
-            "selection.label": "Florida -146",
-            "selection.marketType": "MONEY_LINE",
-            "selection.odds": -146,
-            "selection.unit": 1
-        }
+        # ... more entries
     ]
     
     Args:
@@ -116,8 +117,47 @@ def transform_sportsline_json_data(json_data: Dict[str, Any]) -> List[Dict[str, 
         KeyError: If required fields are missing from the JSON data
         ValueError: If the JSON data structure is invalid
     """
-    # TODO: Implement transformation logic from raw JSON data
-    return []
+    # Implement transformation logic from raw JSON data
+    transformed = []
+    try:
+        # Focus on past picks for completed results
+        edges = json_data.get('props', {}).get('pageProps', {}).get('expertPicksContainerProps', {}).get('pastData', {}).get('expertPicks', {}).get('edges', [])
+        if not edges:
+            raise ValueError("Invalid JSON structure: No 'pastData.expertPicks.edges' found")
+        
+        for edge in edges:
+            node = edge.get('node', {})
+            bet = {}
+            for json_key, output_key in fields_to_extract.items():
+                # Handle nested keys like "node.game.abbrev"
+                keys = json_key.split('.')
+                value = node
+                for k in keys:
+                    if isinstance(value, dict):
+                        value = value.get(k)
+                    else:
+                        value = None
+                        break
+                if value is not None:
+                    # Type conversions for consistency (e.g., ensure odds/unit are numeric)
+                    if 'odds' in json_key and isinstance(value, (int, float)):
+                        bet[output_key] = int(value)  # Keep as int for odds
+                    elif 'unit' in json_key and isinstance(value, (int, float)):
+                        bet[output_key] = float(value)  # Ensure float for calculations
+                    else:
+                        bet[output_key] = value
+            # Only add if all required fields are present and valid
+            required_fields = ['resultStatus', 'unit', 'selection.odds']
+            if all(field in bet for field in required_fields):
+                transformed.append(bet)
+            else:
+                raise KeyError(f"Missing required fields in node: {required_fields}")
+    except KeyError as e:
+        raise KeyError(f"Required JSON structure missing: {e}")
+    except Exception as e:
+        raise ValueError(f"Invalid JSON data structure: {e}")
+    
+    return transformed
 
 def compute_bet_results(bet_data: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
@@ -138,10 +178,50 @@ def compute_bet_results(bet_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         ValueError: If bet_data is empty or malformed
         KeyError: If required fields are missing from bet data
     """
-    # TODO: Implement bet result calculation logic
+    if not bet_data:
+        raise ValueError("bet_data is empty or malformed")
+    
+    record = {"wins": 0, "losses": 0, "draws": 0}
+    results = 0.0
+    total_units = 0.0
+    
+    for bet in bet_data:
+        required_fields = ['resultStatus', 'unit', 'selection.odds']
+        if not all(field in bet for field in required_fields):
+            raise KeyError(f"Missing required fields in bet: {required_fields}")
+        
+        status = bet['resultStatus']
+        unit = bet['unit']
+        odds = bet['selection.odds']
+        
+        # Validate types
+        if not isinstance(unit, (int, float)) or not isinstance(odds, (int, float)):
+            raise ValueError(f"Invalid unit or odds in bet: unit={unit}, odds={odds}")
+        
+        stake = 100.0 * unit  # $100 per unit
+        total_units += stake
+        
+        if status == "Win":
+            record["wins"] += 1
+            if odds > 0:
+                payout = stake * (odds / 100.0)
+            else:
+                payout = stake * (100.0 / abs(odds))
+            results += payout
+        elif status == "Loss":
+            record["losses"] += 1
+            results -= stake
+        elif status in ("Push", "Void"):
+            record["draws"] += 1
+            # No change to results, but stake is still wagered
+        else:
+            raise ValueError(f"Unknown resultStatus: {status}")
+    
+    roi = (results / total_units) if total_units > 0 else 0.0
+    
     return {
-        "record": {"wins": 0, "losses": 0, "draws": 0},
-        "results": 0.0,
-        "total_units": 0.0,
-        "roi": 0.0
+        "record": record,
+        "results": results,
+        "total_units": total_units,
+        "roi": roi
     }
