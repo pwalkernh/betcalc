@@ -49,21 +49,42 @@ def extract_sportsline_json_data(html_content: str) -> Dict[str, Any]:
         ValueError: If no JSON data can be found in the HTML content
         json.JSONDecodeError: If the extracted JSON cannot be parsed
     """
-    # Implement JSON extraction logic from HTML content
-    # Look for patterns like:
-    # - window.__APOLLO_STATE__ = {...}
-    # - window.__NEXT_DATA__ = {...}
-    # - <script id="__NEXT_DATA__" type="application/json">...</script>
-    pattern = r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>'
-    match = re.search(pattern, html_content, re.DOTALL)
-    if not match:
-        raise ValueError("No JSON data found in the HTML content")
+    # Look for __NEXT_DATA__ script tag
+    next_data_pattern = r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>'
+    match = re.search(next_data_pattern, html_content, re.DOTALL)
     
-    try:
-        json_str = match.group(1).strip()
-        return json.loads(json_str)
-    except json.JSONDecodeError as e:
-        raise json.JSONDecodeError(f"Failed to parse extracted JSON: {e}", json_str, 0)
+    if match:
+        try:
+            json_str = match.group(1)
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            raise json.JSONDecodeError(f"Failed to parse __NEXT_DATA__ JSON: {e}", json_str, 0)
+    
+    # Look for window.__NEXT_DATA__ assignment
+    next_data_window_pattern = r'window\.__NEXT_DATA__\s*=\s*({.*?});'
+    match = re.search(next_data_window_pattern, html_content, re.DOTALL)
+    
+    if match:
+        try:
+            json_str = match.group(1)
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            raise json.JSONDecodeError(f"Failed to parse window.__NEXT_DATA__ JSON: {e}", json_str, 0)
+    
+    # Look for window.__APOLLO_STATE__ assignment
+    apollo_pattern = r'window\.__APOLLO_STATE__\s*=\s*({.*?});'
+    match = re.search(apollo_pattern, html_content, re.DOTALL)
+    
+    if match:
+        try:
+            json_str = match.group(1)
+            apollo_data = json.loads(json_str)
+            # Wrap Apollo state in a structure similar to Next.js data
+            return {"props": {"pageProps": {"apolloState": apollo_data}}}
+        except json.JSONDecodeError as e:
+            raise json.JSONDecodeError(f"Failed to parse __APOLLO_STATE__ JSON: {e}", json_str, 0)
+    
+    raise ValueError("No JSON data found in HTML content")
 
 
 # Data fields to extract from the "edges" array in SportsLine JSON.
@@ -84,7 +105,6 @@ fields_to_extract = {
     "node.selection.unit": "selection.unit",
 }
 
-
 def transform_sportsline_json_data(json_data: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Transform raw JSON data from a SportsLine expert webpage into a simplified format.
@@ -104,7 +124,19 @@ def transform_sportsline_json_data(json_data: Dict[str, Any]) -> List[Dict[str, 
             "selection.odds": -152,
             "selection.unit": 0.5
         },
-        # ... more entries
+        {
+            "resultStatus": "Win",
+            "unit": 1,
+            "game.abbrev": "NHL_20250617_EDM@FLA",
+            "game.scheduledTime": "2025-06-18T00:00:00.000Z",
+            "game.homeTeamScore": 5,
+            "game.awayTeamScore": 1,
+            "game.league.abbrev": "NHL",
+            "selection.label": "Florida -146",
+            "selection.marketType": "MONEY_LINE",
+            "selection.odds": -146,
+            "selection.unit": 1
+        }
     ]
     
     Args:
@@ -117,47 +149,47 @@ def transform_sportsline_json_data(json_data: Dict[str, Any]) -> List[Dict[str, 
         KeyError: If required fields are missing from the JSON data
         ValueError: If the JSON data structure is invalid
     """
-    # Implement transformation logic from raw JSON data
-    transformed = []
+    def get_nested_value(data: Dict[str, Any], key_path: str) -> Any:
+        """Helper function to get nested dictionary values using dot notation."""
+        keys = key_path.split('.')
+        current = data
+        
+        for key in keys:
+            if isinstance(current, dict) and key in current:
+                current = current[key]
+            else:
+                return None
+        
+        return current
+    
     try:
-        # Focus on past picks for completed results
-        edges = json_data.get('props', {}).get('pageProps', {}).get('expertPicksContainerProps', {}).get('pastData', {}).get('expertPicks', {}).get('edges', [])
+        # Navigate to the picks data
+        page_props = json_data.get('props', {}).get('pageProps', {})
+        picks_container = page_props.get('expertPicksContainerProps', {}).get('pastData', {})
+        expert_picks = picks_container.get('expertPicks', {})
+        edges = expert_picks.get('edges', [])
+        
         if not edges:
-            raise ValueError("Invalid JSON structure: No 'pastData.expertPicks.edges' found")
+            raise ValueError("No picks data found in JSON structure")
+        
+        transformed_data = []
         
         for edge in edges:
-            node = edge.get('node', {})
-            bet = {}
+            pick_data = {}
+            
+            # Extract each field using the mapping
             for json_key, output_key in fields_to_extract.items():
-                # Handle nested keys like "node.game.abbrev"
-                keys = json_key.split('.')
-                value = node
-                for k in keys:
-                    if isinstance(value, dict):
-                        value = value.get(k)
-                    else:
-                        value = None
-                        break
-                if value is not None:
-                    # Type conversions for consistency (e.g., ensure odds/unit are numeric)
-                    if 'odds' in json_key and isinstance(value, (int, float)):
-                        bet[output_key] = int(value)  # Keep as int for odds
-                    elif 'unit' in json_key and isinstance(value, (int, float)):
-                        bet[output_key] = float(value)  # Ensure float for calculations
-                    else:
-                        bet[output_key] = value
-            # Only add if all required fields are present and valid
-            required_fields = ['resultStatus', 'unit', 'selection.odds']
-            if all(field in bet for field in required_fields):
-                transformed.append(bet)
-            else:
-                raise KeyError(f"Missing required fields in node: {required_fields}")
-    except KeyError as e:
-        raise KeyError(f"Required JSON structure missing: {e}")
+                value = get_nested_value(edge, json_key)
+                pick_data[output_key] = value
+            
+            # Only add picks that have essential data
+            if pick_data.get('resultStatus') and pick_data.get('game.scheduledTime'):
+                transformed_data.append(pick_data)
+        
+        return transformed_data
+        
     except Exception as e:
-        raise ValueError(f"Invalid JSON data structure: {e}")
-    
-    return transformed
+        raise ValueError(f"Failed to transform JSON data: {e}")
 
 def compute_bet_results(bet_data: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
@@ -179,49 +211,69 @@ def compute_bet_results(bet_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         KeyError: If required fields are missing from bet data
     """
     if not bet_data:
-        raise ValueError("bet_data is empty or malformed")
+        raise ValueError("bet_data cannot be empty")
     
-    record = {"wins": 0, "losses": 0, "draws": 0}
-    results = 0.0
+    wins = 0
+    losses = 0
+    draws = 0  # Push and Void outcomes
     total_units = 0.0
+    net_results = 0.0
     
     for bet in bet_data:
-        required_fields = ['resultStatus', 'unit', 'selection.odds']
-        if not all(field in bet for field in required_fields):
-            raise KeyError(f"Missing required fields in bet: {required_fields}")
+        result_status = bet.get('resultStatus')
+        unit_size = bet.get('unit', 1.0)  # Default to 1 unit if not specified
+        odds = bet.get('selection.odds', -110)  # Default to -110 if not specified
         
-        status = bet['resultStatus']
-        unit = bet['unit']
-        odds = bet['selection.odds']
+        if result_status is None:
+            continue
+            
+        # Convert unit size to float if it's a string
+        if isinstance(unit_size, str):
+            try:
+                unit_size = float(unit_size)
+            except ValueError:
+                unit_size = 1.0
         
-        # Validate types
-        if not isinstance(unit, (int, float)) or not isinstance(odds, (int, float)):
-            raise ValueError(f"Invalid unit or odds in bet: unit={unit}, odds={odds}")
+        # Convert odds to int if it's a string
+        if isinstance(odds, str):
+            try:
+                odds = int(odds)
+            except ValueError:
+                odds = -110
         
-        stake = 100.0 * unit  # $100 per unit
-        total_units += stake
+        total_units += unit_size
         
-        if status == "Win":
-            record["wins"] += 1
+        if result_status.lower() == 'win':
+            wins += 1
+            # Calculate winnings based on odds
             if odds > 0:
-                payout = stake * (odds / 100.0)
+                # Positive odds: win amount = (odds / 100) * stake
+                winnings = (odds / 100) * unit_size
             else:
-                payout = stake * (100.0 / abs(odds))
-            results += payout
-        elif status == "Loss":
-            record["losses"] += 1
-            results -= stake
-        elif status in ("Push", "Void"):
-            record["draws"] += 1
-            # No change to results, but stake is still wagered
-        else:
-            raise ValueError(f"Unknown resultStatus: {status}")
+                # Negative odds: win amount = (100 / abs(odds)) * stake
+                winnings = (100 / abs(odds)) * unit_size
+            net_results += winnings
+            
+        elif result_status.lower() == 'loss':
+            losses += 1
+            # Lose the stake
+            net_results -= unit_size
+            
+        elif result_status.lower() in ['push', 'void']:
+            draws += 1
+            # No money won or lost, but still counts toward total units
+            pass
     
-    roi = (results / total_units) if total_units > 0 else 0.0
+    # Calculate ROI
+    roi = (net_results / total_units) if total_units > 0 else 0.0
     
     return {
-        "record": record,
-        "results": results,
+        "record": {
+            "wins": wins,
+            "losses": losses,
+            "draws": draws
+        },
+        "results": net_results,
         "total_units": total_units,
         "roi": roi
     }
