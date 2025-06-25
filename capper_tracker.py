@@ -5,16 +5,13 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 
-def fetch_sportsline_expert_webpage(url: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> str:
+def fetch_sportsline_expert_webpage(url: str) -> str:
     """
     Fetch HTML data for the given sportsline expert web page.
     See sample data in "tests/data/Matt Severance - Vegas Expert Picks - Severance Pays - SportsLine.com.html".
-    Checks the date range of the betting data to be sure it covers the timeframe requested, and activates the "Load More Picks" button as needed.
     
     Args:
         url (str): The URL to fetch data from
-        start_date (datetime, optional): Start date for filtering data. Defaults to 7 days ago.
-        end_date (datetime, optional): End date for filtering data. Defaults to current date/time.
     
     Returns:
         str: HTML content of the web page
@@ -22,8 +19,16 @@ def fetch_sportsline_expert_webpage(url: str, start_date: Optional[datetime] = N
     Raises:
         requests.RequestException: If the HTTP request fails
     """
-    # TODO: Implement web scraping logic to fetch HTML content
-    return ""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        return response.text
+    except requests.RequestException as e:
+        raise requests.RequestException(f"Failed to fetch webpage: {str(e)}")
 
 
 def extract_sportsline_json_data(html_content: str) -> Dict[str, Any]:
@@ -45,13 +50,42 @@ def extract_sportsline_json_data(html_content: str) -> Dict[str, Any]:
         ValueError: If no JSON data can be found in the HTML content
         json.JSONDecodeError: If the extracted JSON cannot be parsed
     """
-    # TODO: Implement JSON extraction logic from HTML content
-    # Look for patterns like:
-    # - window.__APOLLO_STATE__ = {...}
-    # - window.__NEXT_DATA__ = {...}
-    # - <script id="__NEXT_DATA__" type="application/json">...</script>
-    return {}
-
+    # Look for __NEXT_DATA__ script tag
+    next_data_pattern = r'<script id="__NEXT_DATA__" type="application/json">([^<]+)</script>'
+    match = re.search(next_data_pattern, html_content)
+    
+    if match:
+        try:
+            json_str = match.group(1)
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            raise json.JSONDecodeError(f"Failed to parse __NEXT_DATA__ JSON: {str(e)}", json_str, 0)
+    
+    # Look for window.__NEXT_DATA__ pattern
+    next_data_window_pattern = r'window\.__NEXT_DATA__\s*=\s*({.+?});'
+    match = re.search(next_data_window_pattern, html_content, re.DOTALL)
+    
+    if match:
+        try:
+            json_str = match.group(1)
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            raise json.JSONDecodeError(f"Failed to parse window.__NEXT_DATA__ JSON: {str(e)}", json_str, 0)
+    
+    # Look for window.__APOLLO_STATE__ pattern
+    apollo_pattern = r'window\.__APOLLO_STATE__\s*=\s*({.+?});'
+    match = re.search(apollo_pattern, html_content, re.DOTALL)
+    
+    if match:
+        try:
+            json_str = match.group(1)
+            apollo_data = json.loads(json_str)
+            # Wrap in expected structure
+            return {"__APOLLO_STATE__": apollo_data}
+        except json.JSONDecodeError as e:
+            raise json.JSONDecodeError(f"Failed to parse __APOLLO_STATE__ JSON: {str(e)}", json_str, 0)
+    
+    raise ValueError("No JSON data found in HTML content")
 
 # Data fields to extract from the "edges" array in SportsLine JSON.
 # The dictionary keys are the JSON keys to extract, and the values are the keys to use in the output.
@@ -116,8 +150,58 @@ def transform_sportsline_json_data(json_data: Dict[str, Any]) -> List[Dict[str, 
         KeyError: If required fields are missing from the JSON data
         ValueError: If the JSON data structure is invalid
     """
-    # TODO: Implement transformation logic from raw JSON data
-    return []
+    def get_nested_value(obj: Dict[str, Any], path: str) -> Any:
+        """Helper function to get nested values using dot notation"""
+        keys = path.split('.')
+        current = obj
+        for key in keys:
+            if isinstance(current, dict) and key in current:
+                current = current[key]
+            else:
+                return None
+        return current
+    
+    transformed_data = []
+    
+    try:
+        # Navigate to the expert picks data
+        props = json_data.get("props", {})
+        page_props = props.get("pageProps", {})
+        expert_picks_container = page_props.get("expertPicksContainerProps", {})
+        
+        # Get both current and past data
+        current_data = expert_picks_container.get("data", {})
+        past_data = expert_picks_container.get("pastData", {})
+        
+        # Process both current and past picks
+        for data_source in [current_data, past_data]:
+            if not data_source:
+                continue
+                
+            expert_picks = data_source.get("expertPicks", {})
+            edges = expert_picks.get("edges", [])
+            
+            for edge in edges:
+                node = edge.get("node", {})
+                if not node:
+                    continue
+                
+                # Create simplified record
+                record = {}
+                
+                # Extract fields using the mapping
+                for json_path, output_key in fields_to_extract.items():
+                    value = get_nested_value(node, json_path)
+                    record[output_key] = value
+                
+                # Only add records that have the essential fields
+                if record.get("resultStatus") and record.get("unit") is not None:
+                    transformed_data.append(record)
+        
+        return transformed_data
+        
+    except Exception as e:
+        raise ValueError(f"Failed to transform JSON data: {str(e)}")
 
 def compute_bet_results(bet_data: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
@@ -138,10 +222,67 @@ def compute_bet_results(bet_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         ValueError: If bet_data is empty or malformed
         KeyError: If required fields are missing from bet data
     """
-    # TODO: Implement bet result calculation logic
+    if not bet_data:
+        raise ValueError("bet_data cannot be empty")
+    
+    wins = 0
+    losses = 0
+    draws = 0  # Push and Void outcomes
+    total_units = 0.0
+    net_results = 0.0
+    
+    for bet in bet_data:
+        try:
+            result_status = bet.get("resultStatus")
+            unit_size = bet.get("unit", 0)
+            odds = bet.get("selection.odds")
+            
+            if result_status is None or unit_size is None:
+                continue
+            
+            # Convert unit size to float
+            unit_size = float(unit_size)
+            total_units += unit_size
+            
+            if result_status == "Win":
+                wins += 1
+                # Calculate winnings based on odds
+                if odds is not None and odds != 0:
+                    odds = float(odds)
+                    if odds > 0:
+                        # Positive odds: win = (odds/100) * stake
+                        winnings = (odds / 100) * unit_size
+                    else:
+                        # Negative odds: win = (100/abs(odds)) * stake
+                        winnings = (100 / abs(odds)) * unit_size
+                    net_results += winnings
+                else:
+                    # If no odds available, assume even money
+                    net_results += unit_size
+                    
+            elif result_status == "Loss":
+                losses += 1
+                # Lose the stake
+                net_results -= unit_size
+                
+            elif result_status in ["Push", "Void"]:
+                draws += 1
+                # No money won or lost, but still counts toward total units
+                
+        except (ValueError, TypeError) as e:
+            # Skip malformed records
+            continue
+    
+    # Calculate ROI
+    roi = (net_results / total_units) if total_units > 0 else 0.0
+    
     return {
-        "record": {"wins": 0, "losses": 0, "draws": 0},
-        "results": 0.0,
-        "total_units": 0.0,
-        "roi": 0.0
+        "record": {
+            "wins": wins,
+            "losses": losses,
+            "draws": draws
+        },
+        "results": net_results,
+        "total_units": total_units,
+        "roi": roi
     }
