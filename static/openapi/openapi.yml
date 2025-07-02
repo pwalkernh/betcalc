@@ -37,7 +37,7 @@ paths:
   /calculate/payout:
     post:
       summary: Calculate Payout
-      description: Calculate the potential payout for a bet given the odds and stake.
+      description: Calculate the potential payout and profit for a bet given the odds and stake.
       requestBody:
         required: true
         content:

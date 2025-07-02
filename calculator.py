@@ -77,7 +77,7 @@ def decimal_to_american_odds(decimal_odds):
 
 def calculate_payout(odds_string, stake):
     """
-    Calculate the potential payout for a bet given the odds and stake.
+    Calculate the potential payout and profit for a bet given the odds and stake.
     
     Args:
         odds_string (str): American odds string (e.g., "+150", "-200")
