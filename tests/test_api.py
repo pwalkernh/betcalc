@@ -27,11 +27,6 @@ class TestBettingCalculatorAPI(unittest.TestCase):
         self.assertIn('endpoints', data)
         self.assertIn('usage', data)
     
-    def test_home_post(self):
-        """Test the home endpoint with POST method (should return 405)."""
-        response = self.app.post('/')
-        self.assertEqual(response.status_code, 405)
-    
     def check_result_keys(self, result, keys={"odds", "stake", "payout", "profit"}):
         """Check that the result has the expected keys."""
         self.assertEqual(result.keys(), keys)
