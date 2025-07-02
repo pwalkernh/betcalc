@@ -242,7 +242,7 @@ def get_odds():
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
-@app.route('/calculate/effective_odds', methods=['POST'])
+@app.route('/calculate/effective_odds', methods=['POST', 'GET'])
 def get_effective_odds():
     """
     Calculate the effective odds after adjusting for a percentage fee on the profit.
@@ -253,24 +253,44 @@ def get_effective_odds():
                               Defaults to 0.03. Must be less than 1.
                               Negative fees increase the effective odds, positive fees decrease them.
         
+    GET Query Parameters:
+        odds (str): American odds string (e.g., "+150", "-200")
+        fee (float, optional): Percentage fee on profit as a decimal (e.g., 0.03 for 3%, -0.03 for -3%). 
+                              Defaults to 0.03. Must be less than 1.
+                              Negative fees increase the effective odds, positive fees decrease them.
+        
     Returns:
         JSON: {"effective_odds": str} on success
         JSON: {"error": str} with appropriate status code on error
     """
     try:
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({"error": "No data provided"}), 400
-        
-        # Validate odds
-        if 'odds' not in data:
-            return jsonify({"error": "Missing 'odds' parameter"}), 400
-        
-        odds_string = data.get('odds')
-        
-        # Get fee if provided, otherwise use default
-        fee = data.get('fee', 0.03)
+        if request.method == 'POST':
+            data = request.get_json()
+            
+            if not data:
+                return jsonify({"error": "No data provided"}), 400
+            
+            # Validate odds
+            if 'odds' not in data:
+                return jsonify({"error": "Missing 'odds' parameter"}), 400
+            
+            odds_string = data.get('odds')
+            
+            # Get fee if provided, otherwise use default
+            fee = data.get('fee', 0.03)
+            
+        elif request.method == 'GET':
+            # Validate odds
+            odds_string = request.args.get('odds')
+            if not odds_string:
+                return jsonify({"error": "Missing 'odds' parameter"}), 400
+            
+            # Get fee if provided, otherwise use default
+            fee_str = request.args.get('fee', '0.03')
+            try:
+                fee = float(fee_str)
+            except ValueError:
+                return jsonify({"error": "Fee must be a valid number"}), 400
         
         try:
             fee = float(fee)
