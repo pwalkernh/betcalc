@@ -11,6 +11,10 @@ from calculator import calculate_payout, calculate_stake, calculate_odds, parse_
 class TestBettingCalculator(unittest.TestCase):
     """Unit tests for betting calculator functions."""
 
+    def check_result_keys(self, result, keys={"odds", "stake", "payout", "profit"}):
+        """Check that the result has the expected keys."""
+        self.assertEqual(result.keys(), keys)
+
     def test_parse_american_odds_positive(self):
         """Test parsing positive American odds."""
         self.assertEqual(parse_american_odds("+150"), 2.5)  # 1 + 150/100
@@ -49,6 +53,7 @@ class TestBettingCalculator(unittest.TestCase):
         """Test payout calculation with positive odds."""
         # +150 odds with $100 stake should return $250 total payout ($150 profit + $100 stake)
         result = calculate_payout("+150", 100)
+        self.check_result_keys(result)
         self.assertEqual(result["payout"], 250.0)
         self.assertEqual(result["profit"], 150.0)
         self.assertEqual(result["stake"], 100)
@@ -56,6 +61,7 @@ class TestBettingCalculator(unittest.TestCase):
 
         # +200 odds with $50 stake should return $150 total payout ($100 profit + $50 stake)
         result = calculate_payout("+200", 50)
+        self.check_result_keys(result)
         self.assertEqual(result["payout"], 150.0)
         self.assertEqual(result["profit"], 100.0)
         self.assertEqual(result["stake"], 50)
@@ -64,12 +70,14 @@ class TestBettingCalculator(unittest.TestCase):
         """Test payout calculation with negative odds."""
         # -200 odds with $200 stake should return $300 total payout ($100 profit + $200 stake)
         result = calculate_payout("-200", 200)
+        self.check_result_keys(result)
         self.assertEqual(result["payout"], 300.0)
         self.assertEqual(result["profit"], 100.0)
         self.assertEqual(result["stake"], 200)
 
         # -150 odds with $150 stake should return $250 total payout ($100 profit + $150 stake)
         result = calculate_payout("-150", 150)
+        self.check_result_keys(result)
         self.assertEqual(result["payout"], 250.0)
         self.assertEqual(result["profit"], 100.0)
         self.assertEqual(result["stake"], 150)
@@ -78,11 +86,13 @@ class TestBettingCalculator(unittest.TestCase):
         """Test payout calculation edge cases."""
         # +100 odds (even money) with $100 stake
         result = calculate_payout("+100", 100)
+        self.check_result_keys(result)
         self.assertEqual(result["payout"], 200.0)
         self.assertEqual(result["profit"], 100.0)
 
         # Very small stake
         result = calculate_payout("+150", 1)
+        self.check_result_keys(result)
         self.assertEqual(result["payout"], 2.5)
         self.assertEqual(result["profit"], 1.5)
 
@@ -98,6 +108,7 @@ class TestBettingCalculator(unittest.TestCase):
         """Test stake calculation with positive odds."""
         # +150 odds, want $250 total payout, should need $100 stake
         result = calculate_stake("+150", 250)
+        self.check_result_keys(result)
         self.assertAlmostEqual(result["stake"], 100.0, places=2)
         self.assertEqual(result["profit"], 150.0)
         self.assertEqual(result["payout"], 250)
@@ -105,6 +116,7 @@ class TestBettingCalculator(unittest.TestCase):
 
         # +200 odds, want $150 total payout, should need $50 stake
         result = calculate_stake("+200", 150)
+        self.check_result_keys(result)
         self.assertAlmostEqual(result["stake"], 50.0, places=2)
         self.assertEqual(result["profit"], 100.0)
 
@@ -112,12 +124,14 @@ class TestBettingCalculator(unittest.TestCase):
         """Test stake calculation with negative odds."""
         # -200 odds, want $300 total payout, should need $200 stake
         result = calculate_stake("-200", 300)
+        self.check_result_keys(result)
         self.assertAlmostEqual(result["stake"], 200.0, places=2)
         self.assertEqual(result["profit"], 100.0)
         self.assertEqual(result["payout"], 300)
 
         # -150 odds, want $250 total payout, should need $150 stake
         result = calculate_stake("-150", 250)
+        self.check_result_keys(result)
         self.assertAlmostEqual(result["stake"], 150.0, places=2)
         self.assertEqual(result["profit"], 100.0)
 
@@ -133,13 +147,15 @@ class TestBettingCalculator(unittest.TestCase):
         """Test odds calculation that results in positive odds."""
         # $100 stake, $250 total payout should give +150 odds
         result = calculate_odds(100, 250)
+        self.check_result_keys(result)
         self.assertEqual(result["odds"], "+150")
         self.assertEqual(result["stake"], 100)
-        self.assertEqual(result["total_payout"], 250)
+        self.assertEqual(result["payout"], 250)
         self.assertEqual(result["profit"], 150)
 
         # $50 stake, $150 total payout should give +200 odds
         result = calculate_odds(50, 150)
+        self.check_result_keys(result)
         self.assertEqual(result["odds"], "+200")
         self.assertEqual(result["profit"], 100)
 
@@ -147,13 +163,15 @@ class TestBettingCalculator(unittest.TestCase):
         """Test odds calculation that results in negative odds."""
         # $200 stake, $300 total payout should give -200 odds
         result = calculate_odds(200, 300)
+        self.check_result_keys(result)
         self.assertEqual(result["odds"], "-200")
         self.assertEqual(result["stake"], 200)
-        self.assertEqual(result["total_payout"], 300)
+        self.assertEqual(result["payout"], 300)
         self.assertEqual(result["profit"], 100)
 
         # $150 stake, $250 total payout should give -150 odds
         result = calculate_odds(150, 250)
+        self.check_result_keys(result)
         self.assertEqual(result["odds"], "-150")
         self.assertEqual(result["profit"], 100)
 
@@ -161,6 +179,7 @@ class TestBettingCalculator(unittest.TestCase):
         """Test odds calculation for even money (+100)."""
         # $100 stake, $200 total payout should give +100 odds
         result = calculate_odds(100, 200)
+        self.check_result_keys(result)
         self.assertEqual(result["odds"], "+100")
         self.assertEqual(result["profit"], 100)
 

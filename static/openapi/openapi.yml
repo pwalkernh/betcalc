@@ -37,7 +37,7 @@ paths:
   /calculate/payout:
     post:
       summary: Calculate Payout
-      description: Calculate the potential payout for a bet given the odds and stake.
+      description: Calculate the potential payout and profit for a bet given the odds and stake.
       requestBody:
         required: true
         content:
@@ -63,16 +63,45 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  payout:
-                    type: number
-                    description: Total payout including stake
-                    example: 250.0
-                  profit:
-                    type: number
-                    description: Profit amount (payout - stake)
-                    example: 150.0
+                $ref: '#/components/schemas/StandardCalculationResponse'
+        '400':
+          description: Invalid input or calculation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: Calculate Payout
+      description: Calculate the potential payout for a bet given the odds and stake.
+      parameters:
+        - name: odds
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[+-]?[1-9]+\d{2,}$'
+            description: American odds string (e.g., "+150", "-200")
+            example: "+150"
+        - name: stake
+          in: query
+          required: true
+          schema:
+            type: number
+            description: Amount wagered in dollars
+            example: 100.0
+      responses:
+        '200':
+          description: Successful payout calculation
+          content:
+            application/json:
+              schema:
+              $ref: '#/components/schemas/StandardCalculationResponse'
         '400':
           description: Invalid input or calculation error
           content:
@@ -115,20 +144,45 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  stake:
-                    type: number
-                    description: Required stake amount
-                    example: 100.0
-                  profit:
-                    type: number
-                    description: Expected profit
-                    example: 150.0
-                  payout:
-                    type: number
-                    description: Total payout (matches requested payout)
-                    example: 250.0
+                $ref: '#/components/schemas/StandardCalculationResponse'
+        '400':
+          description: Invalid input or calculation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: Calculate Stake
+      description: Calculate the stake required to achieve a desired payout at given odds.
+      parameters:
+        - name: odds
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[+-]?[1-9]+\d{2,}$'
+            description: American odds string (e.g., "+150", "-200")
+            example: "+150"
+        - name: payout
+          in: query
+          required: true
+          schema:
+            type: number
+            description: Desired total payout in dollars
+            example: 250.0
+      responses:
+        '200':
+          description: Successful stake calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardCalculationResponse'
         '400':
           description: Invalid input or calculation error
           content:
@@ -170,16 +224,44 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  odds:
-                    type: string
-                    description: American odds string
-                    example: "+150"
-                  decimal_odds:
-                    type: number
-                    description: Decimal odds value
-                    example: 2.5
+                $ref: '#/components/schemas/StandardCalculationResponse'
+        '400':
+          description: Invalid input or calculation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: Calculate Odds
+      description: Calculate the odds required to achieve a desired payout with a given stake.
+      parameters:
+        - name: stake
+          in: query
+          required: true
+          schema:
+            type: number
+            description: Amount to be wagered in dollars
+            example: 100.0
+        - name: payout
+          in: query
+          required: true
+          schema:
+            type: number
+            description: Desired total payout in dollars
+            example: 250.0
+      responses:
+        '200':
+          description: Successful odds calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardCalculationResponse'
         '400':
           description: Invalid input or calculation error
           content:
@@ -239,6 +321,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: Calculate Effective Odds
+      description: Calculate the effective odds after adjusting for a percentage fee on the profit.
+      parameters:
+        - name: odds
+          in: query
+          required: true
+          schema:
+            type: string
+            description: American odds string (e.g., "+150", "-200")
+            pattern: '^[+-]?[1-9]+\d{2,}$'
+            example: "+150"
+        - name: fee
+          in: query
+          required: false
+          schema:
+            type: number
+            description: Percentage fee on profit as a decimal (e.g., 0.03 for 3%). Defaults to 0.03.
+            example: 0.03
+      responses:
+        '200':
+          description: Successful effective odds calculation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  effective_odds:
+                    type: string
+                    description: Effective American odds string after fee adjustment
+                    example: "+146"
+        '400':
+          description: Invalid input or calculation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
@@ -250,3 +375,23 @@ components:
           description: Error message describing what went wrong
       example:
         error: "Invalid odds format"
+
+    StandardCalculationResponse:
+      type: object
+      properties:
+        odds:
+          type: string
+          description: American odds string
+          example: "+150"
+        stake:
+          type: number
+          description: Original stake amount
+          example: 100.0
+        payout:
+          type: number
+          description: Total payout
+          example: 250.0
+        profit:
+          type: number
+          description: Expected profit
+          example: 150.0
