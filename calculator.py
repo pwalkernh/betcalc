@@ -160,9 +160,8 @@ def calculate_odds(stake, desired_payout):
     Returns:
         dict: Dictionary containing odds calculation details
             - odds (str): American odds string
-            - decimal_odds (float): Decimal odds value
             - stake (float): Original stake
-            - total_payout (float): Total payout
+            - payout (float): Total payout
             - profit (float): Expected profit
         
     Raises:
@@ -190,9 +189,8 @@ def calculate_odds(stake, desired_payout):
     
     return {
         "odds": american_odds,
-        "decimal_odds": round(decimal_odds, 4),
         "stake": stake,
-        "total_payout": desired_payout,
+        "payout": desired_payout,
         "profit": round(profit, 2)
     }
 
