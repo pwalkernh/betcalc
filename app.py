@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from calculator import calculate_payout, calculate_stake, calculate_odds, calculate_effective_odds
-from capper_tracker import fetch_expert_picks
+# from capper_tracker import fetch_expert_picks
+import capper_tracker
 
 app = Flask(__name__)
 
@@ -359,7 +360,7 @@ def fetch_expert_picks():
         
         # Call the function from capper_tracker
         try:
-            json_data = fetch_expert_picks(expert, leagues, after, count)
+            json_data = capper_tracker.fetch_expert_picks(expert, leagues, after, count)
             return jsonify(json_data)
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
