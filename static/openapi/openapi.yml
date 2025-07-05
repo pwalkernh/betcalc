@@ -101,7 +101,7 @@ paths:
           content:
             application/json:
               schema:
-              $ref: '#/components/schemas/StandardCalculationResponse'
+                $ref: '#/components/schemas/StandardCalculationResponse'
         '400':
           description: Invalid input or calculation error
           content:
@@ -392,7 +392,7 @@ paths:
                   example: "eyJfaWQiOiI2N2Y0NmExNy0xYzFmLTRlYjAtODI2MC0zYzAxYzVkOGVhNTQtMjk2MzcxMTAtUFJPUC1GSVJTVF81X0lOTklOR1NfSEFORElDQVAiLCJzY2hlZHVsZWREYXRlVGltZSI6IjIwMjUtMDYtMTlUMTc6MDVaIn0="
                 count:
                   type: integer
-                  description: Number of picks to fetch (default: 10, max: 25)
+                  description: Number of picks to fetch (default=10, max=25)
                   minimum: 1
                   maximum: 25
                   example: 10
@@ -445,7 +445,7 @@ paths:
           required: false
           schema:
             type: integer
-            description: Number of picks to fetch (default: 10, max: 25)
+            description: Number of picks to fetch (default=10, max=25)
             minimum: 1
             maximum: 25
             example: 10
