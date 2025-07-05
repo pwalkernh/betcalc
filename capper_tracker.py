@@ -154,9 +154,9 @@ def transform_sportsline_json_data(json_data: Dict[str, Any]) -> List[Dict[str, 
     
     try:
         # Navigate to the picks data
-        page_props = json_data.get('props', {}).get('pageProps', {})
-        picks_container = page_props.get('expertPicksContainerProps', {}).get('pastData', {})
-        expert_picks = picks_container.get('expertPicks', {})
+        # page_props = json_data.get('props', {}).get('pageProps', {})
+        # picks_container = page_props.get('expertPicksContainerProps', {}).get('pastData', {})
+        expert_picks = json_data.get('data', {}).get('expertPicks', {})
         edges = expert_picks.get('edges', [])
         
         if not edges:
