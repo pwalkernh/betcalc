@@ -365,6 +365,110 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /fetch/expert-picks:
+    post:
+      summary: Fetch Expert Picks
+      description: Fetch expert picks data from SportsLine API by calling the bash script.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - expert
+              properties:
+                expert:
+                  type: string
+                  description: The unique identifier for the expert
+                  example: "50774572"
+                leagues:
+                  type: string
+                  description: Comma-separated list of leagues to filter by
+                  example: "NFL,NBA,MLB"
+                after:
+                  type: string
+                  description: Base64 encoded cursor for pagination
+                  example: "eyJfaWQiOiI2N2Y0NmExNy0xYzFmLTRlYjAtODI2MC0zYzAxYzVkOGVhNTQtMjk2MzcxMTAtUFJPUC1GSVJTVF81X0lOTklOR1NfSEFORElDQVAiLCJzY2hlZHVsZWREYXRlVGltZSI6IjIwMjUtMDYtMTlUMTc6MDVaIn0="
+                count:
+                  type: integer
+                  description: Number of picks to fetch (default: 10, max: 25)
+                  minimum: 1
+                  maximum: 25
+                  example: 10
+      responses:
+        '200':
+          description: Successful expert picks data retrieval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpertPicksResponse'
+        '400':
+          description: Invalid input parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Script execution error or internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: Fetch Expert Picks
+      description: Fetch expert picks data from SportsLine API by calling the bash script.
+      parameters:
+        - name: expert
+          in: query
+          required: true
+          schema:
+            type: string
+            description: The unique identifier for the expert
+            example: "50774572"
+        - name: leagues
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Comma-separated list of leagues to filter by
+            example: "NFL,NBA,MLB"
+        - name: after
+          in: query
+          required: false
+          schema:
+            type: string
+            description: Base64 encoded cursor for pagination
+            example: "eyJfaWQiOiI2N2Y0NmExNy0xYzFmLTRlYjAtODI2MC0zYzAxYzVkOGVhNTQtMjk2MzcxMTAtUFJPUC1GSVJTVF81X0lOTklOR1NfSEFORElDQVAiLCJzY2hlZHVsZWREYXRlVGltZSI6IjIwMjUtMDYtMTlUMTc6MDVaIn0="
+        - name: count
+          in: query
+          required: false
+          schema:
+            type: integer
+            description: Number of picks to fetch (default: 10, max: 25)
+            minimum: 1
+            maximum: 25
+            example: 10
+      responses:
+        '200':
+          description: Successful expert picks data retrieval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpertPicksResponse'
+        '400':
+          description: Invalid input parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Script execution error or internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     ErrorResponse:
@@ -395,3 +499,146 @@ components:
           type: number
           description: Expected profit
           example: 150.0
+
+    ExpertPicksResponse:
+      type: object
+      description: Response containing expert picks data from SportsLine API
+      properties:
+        data:
+          type: object
+          description: The main data container
+          properties:
+            expertPicks:
+              type: object
+              description: Expert picks data container
+              properties:
+                __typename:
+                  type: string
+                  description: GraphQL type name
+                  example: "ExpertPicksConnection"
+                totalCount:
+                  type: integer
+                  description: Total number of picks available
+                  example: 3227
+                pageInfo:
+                  type: object
+                  description: Pagination information
+                  properties:
+                    startCursor:
+                      type: string
+                      description: Base64 encoded cursor for the first item
+                      example: "eyJfaWQiOiI2N2Y0NmExNy0xYzFmLTRlYjAtODI2MC0zYzAxYzVkOGVhNTQtMjk2MzcxMTAtUFJPUC1GSVJTVF81X0lOTklOR1NfSEFORElDQVAiLCJzY2hlZHVsZWREYXRlVGltZSI6IjIwMjUtMDYtMTlUMTc6MDVaIn0="
+                    endCursor:
+                      type: string
+                      description: Base64 encoded cursor for the last item
+                      example: "eyJfaWQiOiI2N2Y0NmExNy0xYzFmLTRlYjAtODI2MC0zYzAxYzVkOGVhNTQtMjk2MzcwNTgtUFJPUC1UT1RBTF9ISVRTLTI3Njg1NTEiLCJzY2hlZHVsZWREYXRlVGltZSI6IjIwMjUtMDYtMTdUMjI6NDVaIn0="
+                    hasNextPage:
+                      type: boolean
+                      description: Whether there are more pages available
+                      example: true
+                    __typename:
+                      type: string
+                      description: GraphQL type name
+                      example: "PageInfo"
+                edges:
+                  type: array
+                  description: Array of expert pick edges containing the actual pick data
+                  items:
+                    type: object
+                    description: Individual expert pick edge
+                    properties:
+                      cursor:
+                        type: string
+                        description: Base64 encoded cursor for this item
+                        example: "eyJfaWQiOiI2N2Y0NmExNy0xYzFmLTRlYjAtODI2MC0zYzAxYzVkOGVhNTQtMjk2MzcxMTAtUFJPUC1GSVJTVF81X0lOTklOR1NfSEFORElDQVAiLCJzY2hlZHVsZWREYXRlVGltZSI6IjIwMjUtMDYtMTlUMTc6MDVaIn0="
+                      node:
+                        type: object
+                        description: The actual expert pick data
+                        properties:
+                          id:
+                            type: string
+                            description: Unique identifier for the pick
+                            example: "67f46a17-1c1f-4eb0-8260-3c01c5d8ea54-29637090-MONEY_LINE"
+                          resultStatus:
+                            type: string
+                            description: Result of the pick (Win, Loss, Push, Void)
+                            example: "Loss"
+                          unit:
+                            type: number
+                            description: Unit size for the bet
+                            example: 1
+                          writeup:
+                            type: string
+                            description: Expert's analysis and reasoning
+                            example: "I believe the Nats are playing for Manager Dave Martinez's job today..."
+                          sportsbookName:
+                            type: string
+                            description: Name of the sportsbook
+                            example: "DraftKings"
+                          game:
+                            type: object
+                            description: Game information
+                            properties:
+                              id:
+                                type: string
+                                description: Game identifier
+                                example: "29637090"
+                              abbrev:
+                                type: string
+                                description: Game abbreviation
+                                example: "MLB_20250618_COL@WAS"
+                              scheduledTime:
+                                type: string
+                                description: Game scheduled time in ISO format
+                                example: "2025-06-19T00:30:00.000Z"
+                              homeTeamScore:
+                                type: integer
+                                description: Home team final score
+                                example: 1
+                              awayTeamScore:
+                                type: integer
+                                description: Away team final score
+                                example: 3
+                              league:
+                                type: object
+                                description: League information
+                                properties:
+                                  id:
+                                    type: string
+                                    description: League identifier
+                                    example: "52"
+                                  abbrev:
+                                    type: string
+                                    description: League abbreviation
+                                    example: "MLB"
+                          selection:
+                            type: object
+                            description: Bet selection details
+                            properties:
+                              label:
+                                type: string
+                                description: Human-readable bet description
+                                example: "Washington -158"
+                              marketType:
+                                type: string
+                                description: Type of bet market
+                                example: "MONEY_LINE"
+                              odds:
+                                type: integer
+                                description: American odds
+                                example: -158
+                              unit:
+                                type: number
+                                description: Unit size for this selection
+                                example: 1
+      example:
+        data:
+          expertPicks:
+            __typename: "ExpertPicksConnection"
+            totalCount: 3227
+            pageInfo:
+              startCursor: "eyJfaWQiOiI2N2Y0NmExNy0xYzFmLTRlYjAtODI2MC0zYzAxYzVkOGVhNTQtMjk2MzcxMTAtUFJPUC1GSVJTVF81X0lOTklOR1NfSEFORElDQVAiLCJzY2hlZHVsZWREYXRlVGltZSI6IjIwMjUtMDYtMTlUMTc6MDVaIn0="
+              endCursor: "eyJfaWQiOiI2N2Y0NmExNy0xYzFmLTRlYjAtODI2MC0zYzAxYzVkOGVhNTQtMjk2MzcwNTgtUFJPUC1UT1RBTF9ISVRTLTI3Njg1NTEiLCJzY2hlZHVsZWREYXRlVGltZSI6IjIwMjUtMDYtMTdUMjI6NDVaIn0="
+              hasNextPage: true
+              __typename: "PageInfo"
+            edges: []
