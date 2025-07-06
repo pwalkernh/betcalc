@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify
 from calculator import calculate_payout, calculate_stake, calculate_odds, calculate_effective_odds
+# from capper_tracker import fetch_expert_picks
+import capper_tracker
 
 app = Flask(__name__)
 
@@ -313,6 +315,63 @@ def get_effective_odds():
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
+@app.route('/fetch/expert-picks', methods=['POST', 'GET'])
+def fetch_expert_picks():
+    """
+    Fetch expert picks data by calling the bash script.
+    
+    POST JSON Parameters:
+        expert (str): The unique identifier for the expert (required)
+        leagues (str, optional): Comma-separated list of leagues to filter by
+        after (str, optional): Base64 encoded cursor for pagination
+        count (int, optional): Number of picks to fetch (default: 10)
+        
+    GET Query Parameters:
+        expert (str): The unique identifier for the expert (required)
+        leagues (str, optional): Comma-separated list of leagues to filter by
+        after (str, optional): Base64 encoded cursor for pagination
+        count (int, optional): Number of picks to fetch (default: 10)
+        
+    Returns:
+        JSON: The expert picks data from the API on success
+        JSON: {"error": str} with appropriate status code on error
+    """
+    try:
+        # Parse parameters
+        if request.method == 'POST':
+            data = request.get_json()
+            if not data:
+                return jsonify({"error": "No data provided"}), 400
+            
+            expert = data.get('expert')
+            leagues = data.get('leagues')
+            after = data.get('after')
+            count = data.get('count', 10)
+            
+        elif request.method == 'GET':
+            expert = request.args.get('expert')
+            leagues = request.args.get('leagues')
+            after = request.args.get('after')
+            count_str = request.args.get('count', '10')
+            try:
+                count = int(count_str)
+            except ValueError:
+                return jsonify({"error": "Count must be a valid integer"}), 400
+        
+        # Call the function from capper_tracker
+        try:
+            json_data = capper_tracker.fetch_expert_picks(expert, leagues, after, count)
+            return jsonify(json_data)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except RuntimeError as e:
+            return jsonify({"error": str(e)}), 500
+        except Exception as e:
+            return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
 @app.route('/')
 def home():
     """Return API information and documentation."""
@@ -323,7 +382,8 @@ def home():
             "/calculate/payout": "Calculate payout from odds and stake",
             "/calculate/stake": "Calculate stake from odds and payout",
             "/calculate/odds": "Calculate odds from stake and payout",
-            "/calculate/effective_odds": "Calculate effective odds after fee adjustment"
+            "/calculate/effective_odds": "Calculate effective odds after fee adjustment",
+            "/fetch/expert-picks": "Fetch expert picks data from SportsLine API"
         },
         "usage": "Send POST requests with JSON data to the endpoints"
     })

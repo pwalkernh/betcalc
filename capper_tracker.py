@@ -1,91 +1,81 @@
 import requests
 import json
 import re
+import subprocess
+import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 
-def fetch_sportsline_expert_webpage(url: str) -> str:
+def fetch_expert_picks(expert: str, leagues: Optional[str] = None, 
+                                 after: Optional[str] = None, count: int = 10) -> Dict[str, Any]:
     """
-    Fetch HTML data for the given sportsline expert web page.
-    See sample data in "tests/data/Matt Severance - Vegas Expert Picks - Severance Pays - SportsLine.com.html".
+    Fetch expert picks data by calling the bash script.
     
     Args:
-        url (str): The URL to fetch data from
-    
+        expert (str): The unique identifier for the expert (required)
+        leagues (str, optional): Comma-separated list of leagues to filter by
+        after (str, optional): Base64 encoded cursor for pagination
+        count (int, optional): Number of picks to fetch (default: 10, max: 25)
+        
     Returns:
-        str: HTML content of the web page
+        Dict[str, Any]: The expert picks data from the API
         
     Raises:
-        requests.RequestException: If the HTTP request fails
+        ValueError: If required parameters are missing or invalid
+        RuntimeError: If script execution fails
+        json.JSONDecodeError: If the script returns invalid JSON
     """
-    # Implement web scraping logic to fetch HTML content
+    if not expert:
+        raise ValueError("expert parameter is required")
+    
+    if count <= 0 or count > 25:
+        raise ValueError("count must be greater than 0 and less than or equal to 25")
+    
+    # Build script arguments
+    script_args = ['--expert', expert, '--count', str(count)]
+    
+    if leagues:
+        script_args.extend(['--leagues', leagues])
+    
+    if after:
+        script_args.extend(['--after', after])
+    
+    script_path = os.path.join(os.path.dirname(__file__), 'scripts', 'fetch_sl_expert_json.sh')
+    
+    if not script_path:
+        raise RuntimeError("Unable to locate the fetch_sl_expert_json.sh script from " + os.getcwd())
+    
+    # Make sure the script is executable
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }  # Mimic a browser to avoid potential blocking
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()  # Raise exception for 4xx/5xx errors
-        return response.text
-    except requests.RequestException as e:
-        raise requests.RequestException(f"Failed to fetch URL {url}: {e}")
-
-def extract_sportsline_json_data(html_content: str) -> Dict[str, Any]:
-    """
-    Extract raw JSON data from a SportsLine expert webpage HTML content.
-    Result data should look like app/tests/data/Matt_Severance_Sample.json.
+        os.chmod(script_path, 0o755)
+    except OSError:
+        # Script might not exist or permissions might not be changeable
+        pass
     
-    Args:
-        html_content (str): HTML content from a SportsLine expert webpage
+    # Call the bash script
+    try:
+        result = subprocess.run(
+            [script_path] + script_args,
+            capture_output=True,
+            text=True,
+            timeout=30  # 30 second timeout
+        )
         
-    Returns:
-        Dict[str, Any]: Raw JSON data containing expert profile and picks information.
-        Structure includes:
-            - props.pageProps.expertProfile: Expert profile information
-            - props.pageProps.expertPicksContainerProps: Current and past picks data
-            - props.pageProps.hottestExperts: League-specific expert rankings
-            
-    Raises:
-        ValueError: If no JSON data can be found in the HTML content
-        json.JSONDecodeError: If the extracted JSON cannot be parsed
-    """
-    # Look for __NEXT_DATA__ script tag
-    next_data_pattern = r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>'
-    match = re.search(next_data_pattern, html_content, re.DOTALL)
-    
-    if match:
-        try:
-            json_str = match.group(1)
-            return json.loads(json_str)
-        except json.JSONDecodeError as e:
-            raise json.JSONDecodeError(f"Failed to parse __NEXT_DATA__ JSON: {e}", json_str, 0)
-    
-    # Look for window.__NEXT_DATA__ assignment
-    next_data_window_pattern = r'window\.__NEXT_DATA__\s*=\s*({.*?});'
-    match = re.search(next_data_window_pattern, html_content, re.DOTALL)
-    
-    if match:
-        try:
-            json_str = match.group(1)
-            return json.loads(json_str)
-        except json.JSONDecodeError as e:
-            raise json.JSONDecodeError(f"Failed to parse window.__NEXT_DATA__ JSON: {e}", json_str, 0)
-    
-    # Look for window.__APOLLO_STATE__ assignment
-    apollo_pattern = r'window\.__APOLLO_STATE__\s*=\s*({.*?});'
-    match = re.search(apollo_pattern, html_content, re.DOTALL)
-    
-    if match:
-        try:
-            json_str = match.group(1)
-            apollo_data = json.loads(json_str)
-            # Wrap Apollo state in a structure similar to Next.js data
-            return {"props": {"pageProps": {"apolloState": apollo_data}}}
-        except json.JSONDecodeError as e:
-            raise json.JSONDecodeError(f"Failed to parse __APOLLO_STATE__ JSON: {e}", json_str, 0)
-    
-    raise ValueError("No JSON data found in HTML content")
-
+        if result.returncode != 0:
+            raise RuntimeError(f"Script execution failed with return code {result.returncode}: {result.stderr}")
+        
+        # Parse the JSON response from the script
+        return json.loads(result.stdout)
+        
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("Script execution timed out")
+    except FileNotFoundError:
+        raise RuntimeError("Script not found")
+    except json.JSONDecodeError as e:
+        raise json.JSONDecodeError(f"Invalid JSON response from script: {str(e)}", result.stdout, 0)
+    except Exception as e:
+        raise RuntimeError(f"Script execution error: {str(e)}")
 
 # Data fields to extract from the "edges" array in SportsLine JSON.
 # The dictionary keys are the JSON keys to extract, and the values are the keys to use in the output.
@@ -164,9 +154,9 @@ def transform_sportsline_json_data(json_data: Dict[str, Any]) -> List[Dict[str, 
     
     try:
         # Navigate to the picks data
-        page_props = json_data.get('props', {}).get('pageProps', {})
-        picks_container = page_props.get('expertPicksContainerProps', {}).get('pastData', {})
-        expert_picks = picks_container.get('expertPicks', {})
+        # page_props = json_data.get('props', {}).get('pageProps', {})
+        # picks_container = page_props.get('expertPicksContainerProps', {}).get('pastData', {})
+        expert_picks = json_data.get('data', {}).get('expertPicks', {})
         edges = expert_picks.get('edges', [])
         
         if not edges:

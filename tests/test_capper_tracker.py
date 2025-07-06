@@ -9,8 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 
 from capper_tracker import (
-    fetch_sportsline_expert_webpage,
-    extract_sportsline_json_data,
+    fetch_expert_picks,
     transform_sportsline_json_data,
     compute_bet_results,
     fields_to_extract
@@ -22,234 +21,83 @@ class TestCapperTracker(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.sample_url = "https://www.sportsline.com/experts/50774572/matt-severance/"
 
         self.expectedSimplifiedJSON = [
             {
-                "resultStatus": "Win",
-                "unit": 0.5,
-                "game.abbrev": "MLB_20250619_LAA@NYY",
-                "game.scheduledTime": "2025-06-19T17:05:00.000Z",
-                "game.homeTeamScore": 7,
-                "game.awayTeamScore": 3,
-                "game.league.abbrev": "MLB",
-                "selection.label": "First 5 Innings N.Y. Yankees -0.5 -161",
-                "selection.marketType": "PROP",
-                "selection.odds": -161,
-                "selection.unit": 0.5,
+                "resultStatus":"Loss",
+                "unit":1,
+                "game.abbrev":"MLB_20250618_COL@WAS",
+                "game.scheduledTime":"2025-06-19T00:30:00.000Z",
+                "game.homeTeamScore":1,
+                "game.awayTeamScore":3,
+                "game.league.abbrev":"MLB",
+                "selection.label":"Washington -158",
+                "selection.marketType":"MONEY_LINE",
+                "selection.odds":-158,
+                "selection.unit":1
             },
             {
-                "resultStatus": "Loss",
-                "unit": 1,
-                "game.abbrev": "MLB_20250618_COL@WAS",
-                "game.scheduledTime": "2025-06-19T00:30:00.000Z",
-                "game.homeTeamScore": 1,
-                "game.awayTeamScore": 3,
-                "game.league.abbrev": "MLB",
-                "selection.label": "Washington -158",
-                "selection.marketType": "MONEY_LINE",
-                "selection.odds": -158,
-                "selection.unit": 1,
+                "resultStatus":"Loss",
+                "unit":0.25,
+                "game.abbrev":"MLB_20250618_BOS@SEA",
+                "game.scheduledTime":"2025-06-18T20:10:00.000Z",
+                "game.homeTeamScore":1,
+                "game.awayTeamScore":3,
+                "game.league.abbrev":"MLB",
+                "selection.label":"Seattle +1.5 -179",
+                "selection.marketType":"POINT_SPREAD",
+                "selection.odds":-179,
+                "selection.unit":0.25
             },
             {
-                "resultStatus": "Loss",
-                "unit": 0.25,
-                "game.abbrev": "MLB_20250618_BOS@SEA",
-                "game.scheduledTime": "2025-06-18T20:10:00.000Z",
-                "game.homeTeamScore": 1,
-                "game.awayTeamScore": 3,
-                "game.league.abbrev": "MLB",
-                "selection.label": "Seattle +1.5 -179",
-                "selection.marketType": "POINT_SPREAD",
-                "selection.odds": -179,
-                "selection.unit": 0.25,
+                "resultStatus":"Loss",
+                "unit":0.5,
+                "game.abbrev":"MLB_20250617_CLE@SF",
+                "game.scheduledTime":"2025-06-18T01:45:00.000Z",
+                "game.homeTeamScore":2,
+                "game.awayTeamScore":3,
+                "game.league.abbrev":"MLB",
+                "selection.label":"San Francisco -160",
+                "selection.marketType":"MONEY_LINE",
+                "selection.odds":-160,
+                "selection.unit":0.5
             },
             {
-                "resultStatus": "Loss",
-                "unit": 0.5,
-                "game.abbrev": "MLB_20250617_CLE@SF",
-                "game.scheduledTime": "2025-06-18T01:45:00.000Z",
-                "game.homeTeamScore": 2,
-                "game.awayTeamScore": 3,
-                "game.league.abbrev": "MLB",
-                "selection.label": "San Francisco -160",
-                "selection.marketType": "MONEY_LINE",
-                "selection.odds": -160,
-                "selection.unit": 0.5,
+                "resultStatus":"Loss",
+                "unit":0.5,
+                "game.abbrev":"MLB_20250617_BOS@SEA",
+                "game.scheduledTime":"2025-06-18T01:40:00.000Z",
+                "game.homeTeamScore":8,
+                "game.awayTeamScore":0,
+                "game.league.abbrev":"MLB",
+                "selection.label":"First 5 Innings - Total Runs Under 4.5 -152",
+                "selection.marketType":"PROP",
+                "selection.odds":-152,
+                "selection.unit":0.5
             },
             {
-                "resultStatus": "Loss",
-                "unit": 0.5,
-                "game.abbrev": "MLB_20250617_BOS@SEA",
-                "game.scheduledTime": "2025-06-18T01:40:00.000Z",
-                "game.homeTeamScore": 8,
-                "game.awayTeamScore": 0,
-                "game.league.abbrev": "MLB",
-                "selection.label": "First 5 Innings - Total Runs Under 4.5 -152",
-                "selection.marketType": "PROP",
-                "selection.odds": -152,
-                "selection.unit": 0.5,
-            },
-            {
-                "resultStatus": "Win",
-                "unit": 1,
-                "game.abbrev": "NHL_20250617_EDM@FLA",
-                "game.scheduledTime": "2025-06-18T00:00:00.000Z",
-                "game.homeTeamScore": 5,
-                "game.awayTeamScore": 1,
-                "game.league.abbrev": "NHL",
-                "selection.label": "Florida -146",
-                "selection.marketType": "MONEY_LINE",
-                "selection.odds": -146,
-                "selection.unit": 1,
-            },
-            {
-                "resultStatus": "Win",
-                "unit": 0.5,
-                "game.abbrev": "MLB_20250617_COL@WAS",
-                "game.scheduledTime": "2025-06-17T22:45:00.000Z",
-                "game.homeTeamScore": 6,
-                "game.awayTeamScore": 10,
-                "game.league.abbrev": "MLB",
-                "selection.label": "Luis Garcia Under 1.5 Total Hits -165",
-                "selection.marketType": "PROP",
-                "selection.odds": -165,
-                "selection.unit": 0.5,
-            },
-            {
-                "resultStatus": "Loss",
-                "unit": 0.5,
-                "game.abbrev": "MLB_20250616_BOS@SEA",
-                "game.scheduledTime": "2025-06-17T01:40:00.000Z",
-                "game.homeTeamScore": 0,
-                "game.awayTeamScore": 2,
-                "game.league.abbrev": "MLB",
-                "selection.label": "Seattle -174",
-                "selection.marketType": "MONEY_LINE",
-                "selection.odds": -174,
-                "selection.unit": 0.5,
-            },
-            {
-                "resultStatus": "Win",
-                "unit": 0.5,
-                "game.abbrev": "NBA_20250616_IND@OKC",
-                "game.scheduledTime": "2025-06-17T00:30:00.000Z",
-                "game.homeTeamScore": 120,
-                "game.awayTeamScore": 109,
-                "game.league.abbrev": "NBA",
-                "selection.label": "Shai Gilgeous-Alexander Under 35.5 Total Points -125",
-                "selection.marketType": "PROP",
-                "selection.odds": -125,
-                "selection.unit": 0.5,
-            },
-            {
-                "resultStatus": "Loss",
-                "unit": 0.5,
-                "game.abbrev": "MLB_20250616_LAA@NYY",
-                "game.scheduledTime": "2025-06-16T23:05:00.000Z",
-                "game.homeTeamScore": 0,
-                "game.awayTeamScore": 1,
-                "game.league.abbrev": "MLB",
-                "selection.label": "N.Y. Yankees -188",
-                "selection.marketType": "MONEY_LINE",
-                "selection.odds": -188,
-                "selection.unit": 0.5,
-            },
-            {
-                "resultStatus": "Win",
-                "unit": 0.5,
-                "game.abbrev": "MLB_20250615_CHW@TEX",
-                "game.scheduledTime": "2025-06-15T18:35:00.000Z",
-                "game.homeTeamScore": 2,
-                "game.awayTeamScore": 1,
-                "game.league.abbrev": "MLB",
-                "selection.label": "Texas -164",
-                "selection.marketType": "MONEY_LINE",
-                "selection.odds": -164,
-                "selection.unit": 0.5,
-            },
-            {
-                "resultStatus": "Loss",
-                "unit": 0.5,
-                "game.abbrev": "MLB_20250615_CIN@DET",
-                "game.scheduledTime": "2025-06-15T16:05:00.000Z",
-                "game.homeTeamScore": 4,
-                "game.awayTeamScore": 8,
-                "game.league.abbrev": "MLB",
-                "selection.label": "Detroit -182",
-                "selection.marketType": "MONEY_LINE",
-                "selection.odds": -182,
-                "selection.unit": 0.5,
-            },
-            {
-                "resultStatus": "Win",
-                "unit": 0.5,
-                "game.abbrev": "MLB_20250614_SF@LAD",
-                "game.scheduledTime": "2025-06-15T02:10:00.000Z",
-                "game.homeTeamScore": 11,
-                "game.awayTeamScore": 5,
-                "game.league.abbrev": "MLB",
-                "selection.label": "L.A. Dodgers -172",
-                "selection.marketType": "MONEY_LINE",
-                "selection.odds": -172,
-                "selection.unit": 0.5,
-            },
-            {
-                "resultStatus": "Loss",
-                "unit": 1,
-                "game.abbrev": "NHL_20250614_FLA@EDM",
-                "game.scheduledTime": "2025-06-15T00:00:00.000Z",
-                "game.homeTeamScore": 2,
-                "game.awayTeamScore": 5,
-                "game.league.abbrev": "NHL",
-                "selection.label": "Edmonton -116",
-                "selection.marketType": "MONEY_LINE",
-                "selection.odds": -116,
-                "selection.unit": 1,
-            },
-        ]
-
-    def test_fetch_sportsline_expert_webpage_basic(self):
-        """Test basic functionality of fetch_sportsline_expert_webpage."""
-
-        html = fetch_sportsline_expert_webpage(self.sample_url)
-
-        # Check that the html is not an empty string.
-        self.assertNotEqual(html, "")
-
-        # Check that valid html is returned.
-        self.assertIn("<html>", html)
-        self.assertIn("</html>", html)
-        self.assertIn("<body>", html)
-        self.assertIn("</body>", html)
-
-    def test_extract_sportsline_json_data(self):
-        """Test basic functionality of extract_sportsline_json_data."""
-        with open('tests/data/Matt Severance - Vegas Expert Picks - Severance Pays - SportsLine.com.html', 'r', encoding='utf-8') as f:
-            html = f.read()
-
-        result = extract_sportsline_json_data(html)
-
-        # Load the expected JSON data from the sample file
-        with open('tests/data/Matt_Severance_Sample.json', 'r', encoding='utf-8') as f:
-            expected_json = json.load(f)
-
-        # Verify the extracted JSON matches the expected structure
-        self.assertEqual(result, expected_json)
-
-    def test_extract_sportsline_json_data_no_json(self):
-        """Test extract_sportsline_json_data with HTML containing no JSON."""
-        html = "<html><body>No JSON here</body></html>"
-
-        with self.assertRaises(ValueError):
-            result = extract_sportsline_json_data(html)
+                "resultStatus":"Win",
+                "unit":0.5,
+                "game.abbrev":"MLB_20250617_COL@WAS",
+                "game.scheduledTime":"2025-06-17T22:45:00.000Z",
+                "game.homeTeamScore":6,
+                "game.awayTeamScore":10,
+                "game.league.abbrev":"MLB",
+                "selection.label":"Luis Garcia Under 1.5 Total Hits -165",
+                "selection.marketType":"PROP",
+                "selection.odds":-165,
+                "selection.unit":0.5
+            }
+        ]        
 
     def test_transform_sportsline_json_data_with_sample_data(self):
         """Test basic functionality of transform_sportsline_json_data."""
-        with open('tests/data/Matt_Severance_Sample.json', 'r', encoding='utf-8') as f:
+        with open('tests/data/Expert_50774572_Next_5_MLB.json', 'r', encoding='utf-8') as f:
             sample_json = json.load(f)
 
         result = transform_sportsline_json_data(sample_json)
+        # pretty print the result
+        # print(json.dumps(result, indent=4))
 
         self.assertEqual(result, self.expectedSimplifiedJSON)
 
@@ -305,16 +153,32 @@ class TestCapperTracker(unittest.TestCase):
         # self.assertEqual(set(result.keys()), expected_keys)
         # self.assertEqual(result["record"], {"wins": 0, "losses": 0, "draws": 0})
 
+    def test_fetch_expert_picks(self):
+        """Test fetch_expert_picks function with expected data."""
+        # Load the expected JSON data from file
+        test_data_path = os.path.join(os.path.dirname(__file__), 'data', 'Expert_50774572_Next_5_MLB.json')
+        
+        with open(test_data_path, 'r') as f:
+            expected_data = json.load(f)
+        
+        result = fetch_expert_picks("50774572", leagues="MLB", count=5, after="eyJfaWQiOiI2N2Y0NmExNy0xYzFmLTRlYjAtODI2MC0zYzAxYzVkOGVhNTQtMjk2MzcxMTAtUFJPUC1GSVJTVF81X0lOTklOR1NfSEFORElDQVAiLCJzY2hlZHVsZWREYXRlVGltZSI6IjIwMjUtMDYtMTlUMTc6MDVaIn0=")
+        
+        # Verify the result matches the expected data
+        self.assertEqual(result, expected_data)
+        
+    def test_fetch_expert_picks_with_multiple_leagues(self):
+        """Test fetch_expert_picks function with multiple leagues."""
+        result = fetch_expert_picks("51306423", leagues="MLB,NHL", count=5)
+        expert_picks = result.get('data', {}).get('expertPicks', {})
+        edges = expert_picks.get('edges', [])
+        # Check that we got the expected number of picks.
+        self.assertEqual(len(edges), 5)
+
     def test_integration_workflow(self):
-        """Test the complete workflow from HTML to results.
-        Verify that the data covers the time period requested."""
+        """Test the complete workflow."""
 
-        html = fetch_sportsline_expert_webpage(self.sample_url)
-
-        # Check that the html is not an empty string.
-        self.assertNotEqual(html, "")
-
-        json_data = extract_sportsline_json_data(html)
+        # Mock call to fetch sportsline expert JSON data.
+        json_data = fetch_expert_picks("50774572", leagues="MLB", count=5)
 
         # Check that the json_data is not an empty dict.
         self.assertNotEqual(json_data, {})
@@ -325,10 +189,16 @@ class TestCapperTracker(unittest.TestCase):
         self.assertGreater(len(transformed_data), 0)
 
         # Check that the most recent date (first in the list) in the data is newer than "2025-06-19T00:30:00.000Z"
-        # This is the earliest date in the sample data.
+        # This is the earliest date in the sample data, and it verifies that we are not just getting our test data.
         self.assertGreater(transformed_data[0]["game.scheduledTime"], "2025-06-19T00:30:00.000Z")
 
         results = compute_bet_results(transformed_data)
+        
+        # Verify the results structure
+        self.assertIn("record", results)
+        self.assertIn("results", results)
+        self.assertIn("total_units", results)
+        self.assertIn("roi", results)
 
 
 if __name__ == '__main__':
