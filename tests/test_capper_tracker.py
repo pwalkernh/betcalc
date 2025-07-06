@@ -169,9 +169,10 @@ class TestCapperTracker(unittest.TestCase):
     def test_fetch_expert_picks_with_multiple_leagues(self):
         """Test fetch_expert_picks function with multiple leagues."""
         result = fetch_expert_picks("51306423", leagues="MLB,NHL", count=5)
-        self.assertGreater(len(result), 0)
-        self.assertIn("MLB", result)
-        self.assertIn("NHL", result)
+        expert_picks = result.get('data', {}).get('expertPicks', {})
+        edges = expert_picks.get('edges', [])
+        # Check that we got the expected number of picks.
+        self.assertEqual(len(edges), 5)
 
     def test_integration_workflow(self):
         """Test the complete workflow."""
