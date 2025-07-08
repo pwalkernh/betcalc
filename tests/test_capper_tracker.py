@@ -160,19 +160,31 @@ class TestCapperTracker(unittest.TestCase):
         
         with open(test_data_path, 'r') as f:
             expected_data = json.load(f)
+            expected_picks = expected_data.get('data', {}).get('expertPicks', {})
+            expected_count = expected_picks.get('totalCount', 3227)
+            expected_edges = expected_picks.get('edges', [])
         
         result = fetch_expert_picks("50774572", leagues="MLB", count=5, after="eyJfaWQiOiI2N2Y0NmExNy0xYzFmLTRlYjAtODI2MC0zYzAxYzVkOGVhNTQtMjk2MzcxMTAtUFJPUC1GSVJTVF81X0lOTklOR1NfSEFORElDQVAiLCJzY2hlZHVsZWREYXRlVGltZSI6IjIwMjUtMDYtMTlUMTc6MDVaIn0=")
         
+        # This is tricky, because 'result' contains a field with the total number of picks.
+        # This number changes over time, and our tests would fail if we do a naive comparison.
+
         expert_picks = result.get('data', {}).get('expertPicks', {})
+
+        # Validate totalCount is reasonable (but don't check exact value)
+        total_count = expert_picks.get('totalCount', 0)
+
+        # As the expert makes more picks, this number grows over time.
+        # So, the newly fetched data should have at least as many picks as the test data.
+        self.assertGreaterEqual(total_count, expected_count)  # Should be at least what we had
+        self.assertIsInstance(total_count, int)
+
         edges = expert_picks.get('edges', [])
         # Check that we got the expected number of picks.
         self.assertEqual(len(edges), 5)
 
-        # TODO: This is tricky, because the result contains a field with the total number of picks. So, this changes over time, and our tests will fail.
-        # Verify the result matches the expected data
-        # We need to check deeper into the data structure to verify that the picks are correct.
-        # Check dates.
-        # self.assertEqual(result, expected_data)
+        # We need to check deeper into the data structure to verify that the pick data are correct.
+        self.assertEqual(edges, expected_edges)
         
     def test_fetch_expert_picks_with_multiple_leagues(self):
         """Test fetch_expert_picks function with multiple leagues."""
