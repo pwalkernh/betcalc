@@ -79,6 +79,9 @@ cd .. && ./run_tests.sh
 python tests/unit_tests.py
 python tests/test_api.py
 python tests/test_capper_tracker.py
+
+# or use this shortcut
+python -m unittest discover -s tests/ -p "test_*.py" -v
 ```
 
 ### Specific Tests
@@ -166,27 +169,6 @@ python -m http.server 8080
 ```
 
 ## Development
-
-### Project Structure
-```
-app/
-├── app.py                  # Main Flask application
-├── calculator.py           # Betting calculation logic
-├── capper_tracker.py       # Expert picks functionality
-├── tests/                  # Test files
-│   ├── unit_tests.py       # Unit tests for calculations
-│   ├── test_api.py         # API endpoint tests
-│   ├── test_capper_tracker.py  # Expert picks tests
-│   └── data/               # Test data files
-├── static/
-│   ├── index.html          # Basic web interface
-│   └── openapi/
-│       └── openapi.yml     # OpenAPI specification
-├── scripts/
-│   └── fetch_sl_expert_json.sh  # SportsLine API script
-└── templates/
-    └── base.html           # HTML templates
-```
 
 ### Adding New Endpoints
 1. Add the endpoint function to `app.py`
