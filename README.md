@@ -151,7 +151,7 @@ curl -X GET "http://localhost:5000/calculate/effective_odds?odds=%2B150&fee=0.03
 ## OpenAPI Documentation
 
 ### Viewing the API Specification
-- **Raw OpenAPI Spec**: `http://localhost:5000/static/openapi/openapi.yml`
+- **Raw OpenAPI Spec**: `http://localhost:5000/static/index.html`
 - **API Info Endpoint**: `http://localhost:5000/`
 
 ### Using with Swagger UI
