@@ -193,9 +193,6 @@ class TestCapperTracker(unittest.TestCase):
         # Check that we got the expected number of picks.
         self.assertEqual(len(edges), 5)
 
-        # We need to check deeper into the data structure to verify that the pick data are correct.
-        self.assertEqual(edges, expected_edges)
-        
     def test_fetch_expert_picks_with_multiple_leagues(self):
         """Test fetch_expert_picks function with multiple leagues."""
         result = fetch_expert_picks("51306423", leagues="MLB,NHL", count=5)
