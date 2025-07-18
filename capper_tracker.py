@@ -102,30 +102,34 @@ def transform_sportsline_json_data(json_data: Dict[str, Any]) -> List[Dict[str, 
     Example output:
     [
         {
-            "resultStatus": "Loss",
-            "unit": 0.5,
-            "game.abbrev": "MLB_20250617_BOS@SEA",
-            "game.scheduledTime": "2025-06-18T01:40:00.000Z",
-            "game.homeTeamScore": 8,
-            "game.awayTeamScore": 0,
-            "game.league.abbrev": "MLB",
-            "selection.label": "First 5 Innings - Total Runs Under 4.5 -152",
-            "selection.marketType": "PROP",
-            "selection.odds": -152,
-            "selection.unit": 0.5
+            "id":"67f46a17-1c1f-4eb0-8260-3c01c5d8ea54-29637090-MONEY_LINE",
+            "cursor":"eyJfaWQiOiI2N2Y0NmExNy0xYzFmLTRlYjAtODI2MC0zYzAxYzVkOGVhNTQtMjk2MzcwOTAtTU9ORVlfTElORSIsInNjaGVkdWxlZERhdGVUaW1lIjoiMjAyNS0wNi0xOFQyMjo0NVoifQ==",
+            "resultStatus":"Loss",
+            "unit":1,
+            "game.abbrev":"MLB_20250618_COL@WAS",
+            "game.scheduledTime":"2025-06-19T00:30:00.000Z",
+            "game.homeTeamScore":1,
+            "game.awayTeamScore":3,
+            "game.league.abbrev":"MLB",
+            "selection.label":"Washington -158",
+            "selection.marketType":"MONEY_LINE",
+            "selection.odds":-158,
+            "selection.unit":1
         },
         {
-            "resultStatus": "Win",
-            "unit": 1,
-            "game.abbrev": "NHL_20250617_EDM@FLA",
-            "game.scheduledTime": "2025-06-18T00:00:00.000Z",
-            "game.homeTeamScore": 5,
-            "game.awayTeamScore": 1,
-            "game.league.abbrev": "NHL",
-            "selection.label": "Florida -146",
-            "selection.marketType": "MONEY_LINE",
-            "selection.odds": -146,
-            "selection.unit": 1
+            "id":"67f46a17-1c1f-4eb0-8260-3c01c5d8ea54-29637084-POINT_SPREAD",
+            "cursor":"eyJfaWQiOiI2N2Y0NmExNy0xYzFmLTRlYjAtODI2MC0zYzAxYzVkOGVhNTQtMjk2MzcwODQtUE9JTlRfU1BSRUFEIiwic2NoZWR1bGVkRGF0ZVRpbWUiOiIyMDI1LTA2LTE4VDIwOjEwWiJ9",
+            "resultStatus":"Loss",
+            "unit":0.25,
+            "game.abbrev":"MLB_20250618_BOS@SEA",
+            "game.scheduledTime":"2025-06-18T20:10:00.000Z",
+            "game.homeTeamScore":1,
+            "game.awayTeamScore":3,
+            "game.league.abbrev":"MLB",
+            "selection.label":"Seattle +1.5 -179",
+            "selection.marketType":"POINT_SPREAD",
+            "selection.odds":-179,
+            "selection.unit":0.25
         }
     ]
     
