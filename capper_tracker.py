@@ -80,6 +80,8 @@ def fetch_expert_picks(expert: str, leagues: Optional[str] = None,
 # Data fields to extract from the "edges" array in SportsLine JSON.
 # The dictionary keys are the JSON keys to extract, and the values are the keys to use in the output.
 fields_to_extract = {
+    "cursor": "cursor",
+    "node.id": "id",
     "node.resultStatus": "resultStatus",
     "node.unit": "unit",
     
